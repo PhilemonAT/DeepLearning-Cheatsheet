@@ -1,0 +1,350 @@
+
+%------------------------------------------------------------------------------------------------
+%                                 Series 1
+% -----------------------------------------------------------------------------------------------
+\section{Coding}
+\lstset{frame=single, basicstyle=\ttfamily, aboveskip=0pt, escapechar=@, belowskip=0pt}
+\begin{lstlisting}[style=mypython]
+@\colorbox{lightgray}{\rule[0.3em]{0pt}{0.001em}\smash{\hspace{2.15cm}Series 1\hspace{2.15cm}}}@
+# np.sign maps 0 to 0 and is therefore incorrect
+y_hat=2*np.int32(np.inner(X_train[idx, :],theta)>=0)-1
+# perform Perceptron update only if wrongly classified
+if y_hat * y_train[idx] < 0:
+    theta += self.lr * y_train[idx] * X_train[idx, :]
+# compute accuracy
+np.mean(np.sign(np.inner(X_train, theta)) == y_train)
+@\colorbox{lightgray}{\rule[0.3em]{0pt}{0.001em}\smash{\hspace{2.15cm}Series 6\hspace{2.15cm}}}@
+class PositionalEncoding(nn.Module):
+    def __init__(self,d_model,dropout,max_len=5000):
+        super().__init__()
+        self.dropout = nn.Dropout(p=dropout)
+
+        position = torch.arange(max_len).unsqueeze(1)
+        div_term=torch.exp(torch.arange(0,d_model,2)* 
+                (-math.log(10000.0) / d_model))
+        pe = torch.zeros(max_len, 1, d_model)
+        pe[:, 0, 0::2]=torch.sin(position * div_term)
+        pe[:, 0, 1::2]=torch.cos(position * div_term)
+        self.register_buffer('pe', pe)
+
+    def forward(self, x: Tensor) -> Tensor:
+        """x:[seq_len, batch_size, embedding_dim]"""
+        x = x + self.pe[:x.size(0)]
+        return self.dropout(x)
+        
+class SelfAttention(nn.Module):
+    def __init__(self, d: int, heads: int=8):
+        super().__init__()
+        self.k, self.h = d, heads
+
+        self.Wq = nn.Linear(d, d * heads, bias=False)
+        self.Wk = nn.Linear(d, d * heads, bias=False)
+        self.Wv = nn.Linear(d, d * heads, bias=False)
+
+        self.unifyheads = nn.Linear(heads * d, d)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        b, l, d = x.size()
+        h = self.h
+
+        q=self.Wq(x).view(b, l, h, d).transpose(1, 2)
+            .contiguous().view(b * h, l, d)
+        k=self.Wk(x).view(b, l, h, d).transpose(1, 2)
+            .contiguous().view(b * h, l, d)
+        v=self.Wv(x).view(b, l, h, d).transpose(1, 2)
+            .contiguous().view(b * h, l, d)
+        # (b*h, l, l)
+        w_prime = torch.bmm(q, k.transpose(1, 2)) \ 
+             / np.sqrt(d)
+        w = F.softmax(w_prime, dim=-1) 
+        out = torch.bmm(w, v).view(b, h, l, d)
+        out = out.transpose(1, 2).contiguous()
+        return self.unifyheads(out.view(b, l, h * d))
+
+class TransformerBlock(nn.Module):    
+    def __init__(self, d, heads= 8, n_mlp = 4):
+        super().__init__()
+        self.attention = SelfAttention(d, heads)
+        
+        self.norm1 = nn.LayerNorm(d)
+        self.norm2 = nn.LayerNorm(d)
+
+        self.ff = nn.Sequential(
+            nn.Linear(d, n_mlp * d), nn.ReLU(),
+            nn.Linear(n_mlp * d, d)
+        )
+### Transformer forward: ###
+self.token_emb = nn.Embedding(num_tokens, embed_dim)
+self.pos_emb = nn.Embedding(max_seq_len, embed_dim)
+token_embs = self.token_emb(x)
+pos_embs = self.pos_emb(torch.arange(l).to(DEVICE))
+    .expand(b, l, d)
+final_embs = token_embs + pos_embs
+out = self.transformer_blocks(final_embs)
+# Compute the mean latent vector for each sequence.
+# The mean is applied over dim=1 (time). Shape: [b, d].
+out = out.mean(dim=1)
+# Classify. Shape: [b, num_classes].
+out = self.classification(out)
+
+### RNN forward: ###
+token_embs = self.token_emb(x)
+# Feed the embedding into the GRU. Shape: [b, l, d]
+# Use output of the last token as the encoding.
+out, final_state = self.rnn(token_embs)
+out = out[:, -1]
+out = self.classification(out)
+@\colorbox{lightgray}{\rule[0.3em]{0pt}{0.001em}\smash{\hspace{2.15cm}Series 11\hspace{2.15cm}}}@
+class GAN(nn.Module):
+    def __init__():
+        super().__init__()
+        # Generator
+        self.generator = nn.Sequential(
+            nn.ConvTranspose2d(in_channels=latent_dim,
+                out_channels=num_maps_gen*8,
+                kernel_size=4, stride=1, padding=0,
+                bias=False),
+            nn.Batchnorm2d(num_maps_gen * 8),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(
+                in_channels = num_maps_gen*8, 
+                out_channels = num_maps_gen*4,
+                kernels_size=4, stride = 2,
+                padding = 1, bias = False),
+            nn.Batchnorm2d(num_maps_gen*4),
+            nn.ReLU(True),
+            [...]
+            nn.ConvTranspose2d(
+                in_channels = num_maps_gen,
+                out_channels = 1,
+                kernels_size=4, stride = 2,
+                padding = 1, bias = False),
+            nn.Tanh()
+        )
+        # Discriminator
+        self.discriminator = nn.Sequential(
+        nn.Conv2d(in_channels = 1,
+            out_channels = num_maps_gen,
+                kernels_size = 4, stride = 2,
+                padding= 1, bias = False),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Conv2d(
+                in_channels = num_maps_gen,
+                out_channels = num_maps_gen*2,
+                kernel_size= 4, stride = 2,
+                padding = 1, bias = False),
+            nn.BatchNorm2d(num_maps_gen*2),
+            nn.LeakyReLU(0.2,inplace=True),
+            [...]
+            nn.Conv2d(
+                in_channels = num_maps_gen*8,
+                out_channels = 1, 
+                kernels_size = 3, stride = 1,
+                padding= 0, bias = False),
+            nn.Sigmoid()
+        )
+#GAN forward
+    def gen_forward(self, z):    
+        img = self.generator(z)
+        return self.generator(z)
+    def disc_forward(self, img):
+        pred = self.discriminator(img)
+        return pred.view(-1)
+gen_optim = torch.optim.Adam( #Adam Gen
+    params=model.generator.parameters(), 
+    lr=generator_lr, betas=(0.5, 0.999))
+disc_optim = torch.optim.Adam( #Adam Disc
+    params=model.discriminator.parameters(), 
+    lr=discriminator_lr, betas=(0.5, 0.999))
+disc_loss_func = nn.BCELoss()
+gen_loss_func = nn.BCELoss() 
+#GAN Training
+for epoch in range(num_epochs):   
+    model = model.train()
+    for batch_idx, (real_data, targets) 
+    in enumerate(train_loader):
+      batch_size = targets.size(0)
+      real_data = real_data.to(device)
+      targets = targets.to(device)
+      # CREATING GROUND-TRUTH
+      y_real=torch.ones(batch_size).float().to(d)
+      y_fake=torch.zeros(batch_size).float().to(d)
+      # TRAIN DISCRIMINATOR
+      disc_optim.zero_grad()
+      # train the disc.to classify real images
+      disc_pred_real=model.disc_forward(real_data)
+        .view(-1)
+      real_loss = disc_loss_func(disc_pred_real,
+        y_real)
+      # gen imgs frm smpls of the ltnt prior
+      z = torch.randn(batch_size, latent_dim, 1, 1,
+        device=device )
+      fake_data = model.gen_forward(z)
+      # train the disc. to classify fake images
+      # detach the comp. graph of the generator
+      # s.t. grads are not backprop into the gen)
+      disc_pred_fake = model.disc_forward(
+        fake_data.detach()).view(-1)
+      fake_loss = disc_loss_func(disc_pred_fake, 
+        y_fake)
+      disc_loss = 0.5*(real_loss + fake_loss)# avg
+      disc_loss.backward()
+      disc_optim.step()
+      # TRAIN GENERATOR
+      gen_optim.zero_grad()
+      # train gen s.t. image is class. as real
+      disc_pred_fake = model.disc_forward(
+        fake_data).view(-1)
+      gen_loss = gen_loss_func(disc_pred_fake, y_real)
+      gen_loss.backward()
+      gen_optim.step()
+      [...]
+@\colorbox{lightgray}{\rule[0.3em]{0pt}{0.001em}\smash{\hspace{2.15cm}Series 12\hspace{2.15cm}}}@
+class ForwardProcess: # FIND X_t and noise
+    def __init__(self, betas: torch.Tensor):
+        self.beta = betas
+        self.alphas = 1. - betas
+        self.alpha_bar=torch.cumprod(self.alphas,
+        dim=-1)
+
+    def get_x_t(self, x_0: torch.Tensor, t: 
+    torch.LongTensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        eps_0 = torch.randn_like(x_0).to(x_0)
+        alpha_bar = self.alpha_bar[t-1, None]
+        mean = (alpha_bar ** 0.5) * x_0
+        std = ((1. - alpha\_bar) ** 0.5)
+        return (eps_0, mean + std * eps_0) 
+
+class NoiseNetwork{(nn.Module)}:
+    def __init__(self, T):
+    super().__init__()
+    self.T = T
+    self.t_encoder = nn.Linear(T,1)
+    self.model = nn.Sequential (
+        nn.Linear(2 + 1, 100),
+        nn.LeakyReLU(inplace=True),
+        nn.Linear(100, 2),
+    )
+
+def forward(self, x_t, t):
+    t_embedding = self.t_encoder(
+        F.one_hot(t - 1, num_classes=self.T
+            ).to(torch.float)
+    )
+    input = torch.cat([x_t, t_embedding], dim=1)
+    return self.model(input)
+T = 100
+beta_start = 0.004
+beta_end = 0.02
+betas = torch.linspace(beta_start,beta_end,T)
+#Training
+fp = ForwardProcess(betas)
+model = NoiseNetwork(T=T)
+optimizer = torch.optim.AdamW(params=model.parameters(),
+lr=1e-2, betas=(0.9, 0.999), weight_decay=1e-4)
+
+N = X.shape[0]
+for epoch in trange(5000):
+    with torch.no_grad():
+        t = torch.randint(low=1, high=T, size=(N,))
+        eps_0, x_t = fp.get_x_t(X, t=t)
+    pred_eps = model(x_t, t)
+    loss = torch.nn.functional.mse_loss(pred_eps,eps_0)
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+#Define reverse process
+class ReverseProcess(ForwardProcess):
+    def __init__(self, betas: torch.Tensor,
+    model: nn.Module):
+        super().__init__(betas)
+        self.model = model
+        self.T = len(betas)
+
+        self.sigma = (
+        betas * (1 - torch.roll(self.alpha_bar, 1)) 
+        / (1 - self.alpha_bar)) ** 0.5
+        self.sigma[0] = 0. 
+    def get_x_t_minus_one(self, x_t: torch.Tensor,
+    t: int) -> torch.Tensor:
+        with torch.no_grad():
+            t_vector = torch.full(size=(x_t.shape[0],),
+            fill_value=t, dtype=torch.long)
+            eps = self.model(x_t, t=t_vector)
+        eps *= (1 - self.alphas[t-1]) 
+            / ((1 - self.alpha_bar[t-1]) ** 0.5)
+        mean = 1 / (self.alphas[t-1] ** 0.5) 
+            * (x_t - eps)
+        return mean + self.sigma[t-1] 
+            * torch.randn_like(x_t)
+
+    def sample(self, n_samples=1, full_trajectory=False):
+        x_t = torch.randn(n_samples, 2)
+        trajectory = [x_t.clone()]
+        for t in range(self.T, 0, -1):
+            x_t = self.get_x_t_minus_one(x_t, t=t)
+            if full_trajectory:
+                trajectory.append(x_t.clone())
+        return torch.stack(trajectory, dim=0) if
+        full_trajectory else x_t
+@\colorbox{lightgray}{\rule[0.3em]{0pt}{0.001em}\smash{\hspace{2.15cm}Series 13\hspace{2.15cm}}}@
+def fgsm_(model, x, target, eps, targeted=True,
+    clip_min=None, clip_max=None):
+    # copy of the input tensor
+    input_ = x.clone().detach_()
+    # we have to be able to differentiate
+    input_.requires_grad_()
+
+    logits = model(input_)
+    target = torch.LongTensor([target])
+    model.zero_grad()
+    loss = nn.CrossEntropyLoss()(logits, target)
+    loss.backward()
+    #perfrom either targeted or untargeted attack
+    if targeted:
+        out = input_ - eps * input_.grad.sign()
+    else:
+        out = input_ + eps * input_.grad.sign()
+    if (clip_min is not None)or(clip_max is not None):
+        out.clamp_(min=clip_min, max=clip_max)
+    return out
+
+def fgsm_targeted(model, x, target, eps,**kwargs):
+    return fgsm_(model, x, target, eps, targeted=True, 
+    **kwargs)
+def fgsm_untargeted(model, x, label, eps, **kwargs):
+    return fgsm_(model, x, label, eps, targeted=False, 
+    **kwargs)
+
+# x: input image
+# label: current label of x
+# k: number of FGSM iterations
+# eps: size of l-infinity ball
+# eps_step: step size of FGSM iterations
+# Each FGSM iteration is projected back to the
+#eps-sized l_inf ball around x
+def pgd(model, x, label, k, eps, eps_step, targeted, 
+    clip_min, clip_max):
+    x_min = x - eps
+    x_max = x + eps
+    
+    # Randomize the starting point x.
+    x_adv = x + eps * (2 * torch.rand_like(x) - 1)
+    # Clamp back
+    if (clip_min is not None)or(clip_max is not None):
+        x_adv.clamp_(min=clip_min, max=clip_max)
+    for i in range(k):
+        # FGSM step
+        # We don't clamp here (clip_min=clip_max=None) 
+        # as we want to apply the attack as defined
+        x_adv = fgsm_(model, x_adv, label, eps_step, 
+            targeted)
+        # Projection Step
+        x_adv =torch.min(x_max,torch.max(x_min, x_adv))
+    #if desired: clip the ouput back to image domain
+    if (clip_min is not None)or(clip_max is not None):
+        x_adv.clamp_(min=clip_min, max=clip_max)
+    return x_adv
+
+
+\end{lstlisting}

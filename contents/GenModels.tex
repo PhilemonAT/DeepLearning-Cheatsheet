@@ -1,0 +1,160 @@
+\section{Generative Models}
+\subsection{VAEs}
+\begin{itemize}
+    \item AE: \(x \mapsto z =Cx\), \(C \in \mathbb{R}^{m\times n}\) , used with \(E(C,D)(x)=\frac{1}{2}||x-DCx||^2\)
+    \begin{itemize}
+        \item Goal: find good embedding \(z:\) bottleneck layer
+    \end{itemize}
+\item Solution can be obtained using red. SVD, leading to optimality condition: \(DCX=\hat{X}=U\Sigma_mV^\top\), \(\Sigma_m=diag(\sigma_1,\dots,\sigma_m,0,\dots)\) 
+\item For centered data, equiv. to PCA and optimal \(C\), is any matrix that projects pattens to subspace by m-principal eigenvectors of \(XX^\top\) (\(D=C^+\))
+\item Lin. AE objective has \textbf{no} non-global minima 
+\end{itemize}
+\textbf{Linear Factor Analysis}
+\begin{itemize}
+    \item Latent variable model known as \textit{factor analysis}, (1) define a pdf \(p_Z \) over latents, (2) define \(p_{X|Z}\), (3) obtain \(p_X(x) = \int p_Z(z)p_{X|Z}(x|z)dz\)
+    \item Gaussian Prior: \(z\sim \mathcal{N}(0,I)\), \(z\in \mathbb{R}^m\) and lin. obs model: \(x = \mu + Wz+ \eta\), \(\eta \sim \mathcal{N}(0,\Sigma)\), \(\Sigma= diag(\sigma_1^2, \dots,\sigma_n^2)\) 
+    \item Assume \(\eta \perp z\), typically: \(m<<n\) , \(\hat{\mu}= \frac{1}{s}\sum_{i=1}^sx_i\) (data centering) induces \(x\sim \mathcal{N}(\mu,WW^\top+\Sigma)\)
+    \item For  \(W\) and any orthog. \(m\times m\) matrix \(Q\rightarrow (WQ)(WQ)^\top=WW^\top \rightarrow\) factors only identif. upto orthog. transf. (rot, refl., permutat.) 
+    \item \textrightarrow In factor analysis, you \textit{cannot} identify a unique set of factors or loadings W; you can only identify them up to this “orthogonal freedom” 
+    \item Encoder implicitly defines gauss. \textit{posterior} via Bayes' rule: \(\mu_{z|x}=W^\top(WW^\top+\Sigma)^{-1}(x-\mu)\) and \(\Sigma_{z|x}= I -W^\top(WW^\top +\Sigma)^{-1}W\)
+    \item If \(\Sigma =\sigma^2I\) and \(\sigma\rightarrow 0 \rightarrow\)\(\mu_{z|x}=W^\top(WW^\top+\sigma^2I)^{-1}\rightarrow W^+\in \mathbb{R}^{m\times n}\) (pseudoinv.)
+    \begin{itemize}
+        \item \(\mu_{z|x}\rightarrow W^+(x-\mu)\), \(\Sigma_{z|x}\rightarrow 0\)
+    \end{itemize}
+    \item Use MLE to find parms.: \(\mu,W \overset{max}{\leftarrow}logp(\mu,W)(\mathcal{S)}\) (No closed form sol.)
+    \item For \(\Sigma=\sigma^2I\) (probabilistic PCA) optim. cond. for i-th column of \(W\): \(w_i = \rho_iu_i\), \(\rho_i = max\{0,\sqrt{\lambda_i-\sigma^2}\}\)
+    \begin{itemize}
+        \item (\(\lambda_i,u_i\)) is i-th Princ. eigenvalue/-vector of covariance matrix.
+        \item \(\sigma \rightarrow 0\equiv \) PCA
+    \end{itemize}
+\end{itemize}
+\textbf{Variational Autoencoder:} (factor analysis+depth+non-linear activations)
+\begin{itemize}
+    \item \(z\overset{iid}{\sim} \mathcal{N}(0,I) \) and propag. through NN \(x=F(\theta)(z)=(F^L\circ\dots\circ F^1)(z)\)
+
+\end{itemize} 
+\textbf{Derive ELBO:} 
+\(
+\log p_\theta(x)
+= \log \!\int p_\theta(x \mid z)\,p(z)\,dz
+= \log \!\int q(z)\,\frac{p_\theta(x \mid z)\,p(z)}{q(z)}\,dz
+\)\\
+\(
+\geq\int q(z)\,\log\bigl(p_\theta(x \mid z)\bigr)\,dz -{\textcolor{darkgreen}{\int q(z)\,\log\left(\tfrac{q(z)}{p(z)}\right)dz}} :=\mathcal{L}(\theta,q)(x)
+\), with $\textcolor{darkgreen}{D_{\text{KL}}(q||p)}$
+\begin{itemize}
+    \item \(\theta \overset{max}{\rightarrow}\mathcal{L}(\theta,q)(\mathcal{S})= \sum_{i=1}^s\mathcal{L}(\theta,q)(x_i)\). \(q(.|x)\) can be any distrib. over latent vars|x, optimal \(q(z|x)=p(z|x)\equiv\) EM
+    \item Practice: restrict \(q\) to var. family (e.g., iid normal) \(z\sim \mathcal{N}(\mu(x),\Sigma(x)),\) \(\Sigma(x)=diag(\sigma^2_1(x),\dots,\sigma^2_n(x))\) 
+    \item \textbf{Optimizing} \(\theta\): (1) sample from \(z\) (2) perform backprop and SGD step for \(\theta\) treating sampled \(z\) as fixed input (no MCMC needed) \(\rightarrow\) unbiased estimate of gradient and small \(\uparrow\) var
+    \item \textbf{Optimizing \(q\)}: Use stoch. backprop (1) reparam. parametrized distr. by fixed unpara. randomness e.g., \(z\sim \mathcal{N}(\mu,\Sigma)\Leftrightarrow z=\mu + \Sigma^{\frac{1}{2}}\eta\) , \(\eta\sim N(0,I)\) (2) parameters no longer hidden \(\rightarrow\) use backprop on \(\mu \) and \(\Sigma^{\frac{1}{2}}\)
+    \item Approach generiz. for any smooth and integrable \(f\) \(\nabla_\mu\mathbf{E}[f(z)]=\mathbf{E}[\nabla_zf(z)]\), \(\nabla_\Sigma\mathbf{E}[f(z)]=\frac{1}{2}\mathbf{E}[\nabla^2_zf(z)]\)
+\end{itemize}
+\textbf{Reparametrizations}:
+\begin{itemize}
+    \item \(\epsilon\sim\mathcal{U}[0,1]\leadsto (b-a)\epsilon + a \sim \mathcal{U}[a, b]\)
+    \item \(\epsilon \sim \mathcal{N}(0, 1) \leadsto \mu + \sigma \epsilon \sim \mathcal{N}(\mu, \sigma^2)\)
+    \item \(\bm{\epsilon}\sim\mathcal{N}(\bm{0}, \bm{I})\leadsto \bm{\mu} + \bm{\Sigma}^{1/2}\bm{\epsilon}\sim\mathcal{N}(\bm{\mu}, \bm{\Sigma})\)
+    \item \(\epsilon\sim\mathcal{N}(0, 1)\leadsto \exp(\mu + \sigma \epsilon)\sim \operatorname{LogNormal}(\mu, \sigma^2)\)
+\end{itemize}
+\subsection{GANs} (derive training signal without likelihood or ELBO)
+\begin{itemize}
+    \item Goal: Derive a Training signal from classifier that discrimin. true data samples from model-generated samples (discriminator). \(\tilde{p}_\theta(x,y)=\frac{1}{2}(yp(x)+(1-y)p_\theta(x)\). \(y\in \{0,1\}\)
+    \item \(p\): true probability, \(p_\theta\): model
+    \item Bayes optim. class.: \(q_\theta(x) :=\mathbb{P}\{y=1|x\}=\frac{p(x)}{p(x)+p_\theta(x)}\rightarrow\) posterior prob. of x being real
+    \item Now, Train generator by \textbf{minimizing} the logistic likelihood \(\theta \overset{min}{\rightarrow} \ell^*(\theta):=\mathbf{E}_{\tilde{p}_\theta}[yln(q_\theta(x))+(1-y)ln(1-q_\theta(x)) ]\)
+    \item JS-Divg. obj. gets minim. when minim.: \(\mathbf{E}_{\tilde{p}_\theta}[\dots]= JS(p,p_\theta)-ln2\)
+    \item JS-Divg. is a symmetrized version of KL-Divg. \(\rightarrow \) instead of max likeli., minimiz. JS-Divg.
+    \item JS-Divg: \(
+D_{\mathrm{JS}}(P \,\|\, Q)
+\;=\;
+\tfrac12\,D_{\mathrm{KL}}\!\Bigl(P \,\Big\|\,
+  \tfrac{P + Q}{2}\Bigr)
+\;+\;
+\tfrac12\,D_{\mathrm{KL}}\!\Bigl(Q \,\Big\|\,
+  \tfrac{P + Q}{2}\Bigr).
+\)
+
+\end{itemize}
+\textbf{Discriminators}
+\begin{itemize}
+    \item Define parametrized classif. instead of bayes opt. \(q_\phi:x\mapsto[0;1],\) \(\phi\in \Phi\)
+    \item Obj. w/ bound:\(\ell^*(\theta) \geq \underset{\phi\in\Phi}{\text{sup}}\ell(\theta,\phi):= \mathbf{E}_{\tilde{p}_\theta}[y\ln q_\phi(x)+(1-y)\ln(1-q_\phi(x))]\)
+\end{itemize}
+\textbf{GAN Training (Saddle Pt problem)}
+$\theta^*\coloneqq\text{argmin}_{\theta \in \Theta} \{{\text{sup}_{\phi\in\Phi}}\ell (\theta,\phi)\}$. Impractical to perform inner sup, so use backprop with extra gradient step (to stabilize training):
+$
+\theta^{t+1}
+= \theta^t - \eta\,\nabla_{\theta}\,\ell\bigl(\theta^{t+\tfrac{1}{2}}, \phi^t\bigr),
+\quad
+\theta^{t+\tfrac{1}{2}} := \theta^t - \eta\,\nabla_{\theta}\,\ell\bigl(\theta^t, \phi^t\bigr), \;$ 
+$
+\phi^{t+1}= \phi^t + \eta\,\nabla_{\phi}\,\ell\bigl(\theta^t, \phi^{t+\tfrac{1}{2}}\bigr),
+\quad
+\phi^{t+\tfrac{1}{2}} := \phi^t + \eta\,\nabla_{\phi}\,\ell\bigl(\theta^t, \phi^t\bigr).
+$
+\textrightarrow Make virtual step forward to eval. the gradient from which to calculate the actual update direction. Req. two grad.u steps per parameters change
+\subsection{Exercises}
+\begin{itemize}
+    \item Mode collapse of GANs: the failure of the generator to produce variety / diversity of samples, by collapsing many values of $z$ to the same sample x (partial collapse occurs often)
+    \item GANs are typically trained by taking a single (or a few) update steps for the discriminator in the inner loop and a single (or a few) update steps for the generator in the outer loop, in order for the discriminator not to become too strong (gradient vanishes)
+    \item Backpropagation of GANs doesn't work on discrete data
+    \item VAE: well defined objective, but no discrete latent variable and vice versa for GANs
+\end{itemize} 
+We obs. that GAN training approx. minimizes the JS-div. GANs however can even be extended to arbitrary f-diverges. \(D_f(P||Q)=\int_Xq(x)f(\frac{p(x)}{q(x)})dx\)
+\begin{itemize}
+    \item \(f:\mathbb{R}_+\rightarrow \mathbb{R}\) is a convex, lower-semicontinous fct \& \(f(1)=0\)
+    \item \(f(u)=-(u+1)\log\frac{1+u}{2} + u\log(u)\rightarrow\) JS-Div
+    \item For \(T:X\rightarrow\mathbb{R}\), T is an arbitrary function within some fam of fcts.
+    \item Using \(f(u)=\underset{t\in\mathbf{dom}_{f^*}}{sup}\{tu-f^*(t)\}\) (bi-conjugate, convex conj, fenchel conj.) one can write \(D_f(P||Q) \geq \underset{T\in}{sup}(\mathbb{E}_{x\sim D}[T(x)]-\mathbb{E}_{x\sim Q}[f^*(T(x))])\)
+
+\end{itemize}
+We train NNs \(Q_\theta\) (gen) and $T_\omega$ (variation fct, takes sample and outputs scalar; disc). Now we write the var. Low.-bound as \(F(\theta,\omega)=\mathbb{E}_{x\sim P}[T_\omega(x)]-\mathbb{E}_{x\sim Q_\theta}[f^*(T_\omega(x))]\)
+\begin{itemize}
+    \item \(T_\omega=g_f(V_\omega(x))\) where \(V_\omega : X \rightarrow \mathbb{R}\) and \(g_f : \mathbb{R} \rightarrow\underset{f^*}{dom}\)
+    \item Using \(g_f(\nu)=-log(1+exp(-\nu))\) and \(f^*(t)=-log(1-exp(t))\rightarrow\) we retrieve the GAN obj: \(\mathbb{E}_{x\sim P}[log(D_\omega(x))]+\mathbb{E}_{x\sim Q_\theta}[log(1-D_\omega(x)))]\)
+    \item Benefits of optimizing JS divergence over standard MLE training: In standard MLE, we optimize forward KL $ = \int_x p(x) \frac{p(x)}{q(x)}dx$. Thus, when $p(x)=0$, $q(x)$ is ignored. Thus, model tends to spread its mass everywhere where $p(x)>0$ and is zero otherwise (\textrightarrow blurry samples). Reverse KL has opposite problem (\textrightarrow mode collapse as model only focuses on certain modes of the true distribution). JS mitigates this problem by combining the two: $JS(Q||P)=\frac{1}{2}KL(P||\frac{P+Q}{2})+\frac{1}{2}KL(Q||\frac{P+Q}{2})$
+
+\end{itemize}
+Assume: \(\mathbf{z}\sim N(\mathbf{0},\mathbf{1})\), \(z\in \mathbb{R}^m\) and \(\mathbf{x}=\mathbf{x_0}+\mathbf{W}+\mathbf{\eta}\), \(\mathbf{\eta}\sim \mathcal{N}(\mathbf{0},\mathbf{\Psi})\)
+\begin{itemize}
+    \item \(\Psi:=diag(\sigma_1^2,\dots,\sigma_n^2)\)
+    \item \(\rightarrow \binom{z}{x}\sim \mathcal{N}(\binom{\mathbf{0}}{\mathbf{x_0}},\) 
+\begin{pmatrix}
+\mathbf{I} & \mathbf{W^\top} \\
+\mathbf{W} & \mathbf{WW^\top + \Psi}
+\end{pmatrix}
+\end{itemize}
+\begin{itemize}
+    \item No closed form solution to perform MLE, need to use EM-algorithm
+\end{itemize}
+\subsection{Diffusion models}
+Stochastic process $x_{0:\infty} \coloneqq (x_0,x_1,...)$ is called a \textbf{Markov chain} if future and past are cond. ind. given present: ${x_{0:t-1}}\perp{x_{t+1:\infty}} \,|\, x_t$, $\forall t$. This implies marginal over temporal slice $p(x_{s:t})=p(x_s)\prod_{\tau=s+1}^t \textcolor{darkgreen}{p(x_\tau|x_{\tau-1})}$ (\textcolor{darkgreen}{\textbf{Markov kernel}}). 
+Markov chain can equivalently be expressed in \textbf{time-reversed form}: $p(x_{s:t})=p(x_t)\prod_{\tau = s+1}^t p(x_{\tau-1}|x_\tau)$. Markov chain $x_{0:\infty}$ is called \textbf{time-homogeneous} if $p(x_t|x_{t-1})=p(x_1|x_0), \forall t$, otherwise \textbf{time-inhomogeneous}. A \textbf{state distr.} $\pi$ is called \textbf{invariant} if $\pi(x_{t+1})=\int \pi(x_t)p(x_{t+1}|x_t)dx_t$. \\
+\vspace{0.01cm}\dotfill\vspace{0.01cm}\\
+\textbf{Denoising diffusion:} Goal is to find flex. class of models to approx. high-dim. empirical data distr. via parametric transfo. of a simple source distr.: $\pi \mapsto \mu(\theta) \overset{!}\simeq \pi_* \overset{iid}{\sim}\{x^1,...,x^s\}$. Denoising diff. learns such a transfo. in multi-step process, aiming to generate a trajectory of probability measures $\pi=\mu_T \overset{\theta}\mapsto \mu_{T-1} \overset{\theta}{\mapsto}  \dots \overset{\theta}{\mapsto}\mu_1\overset{\theta}{\mapsto}\mu_0\overset{!}{\simeq}\pi_*$. This is thought of as an inversion of a typically \textbf{fixed forward trajectory} $\pi_*=\nu_0 \mapsto \nu_{1} \mapsto \dots \mapsto\nu_{T-1}\mapsto\nu_T=\pi$ (Markov chain with $\pi$ as its invariant measure; will gradually forget initial $\pi_*$ and approach invariant distr. in limit). \emph{Ex}.: $\pi \simeq \mathcal{N}(0, \mathbb{I}), x_t|x_{t-1} \sim \mathcal{N}(\sqrt{1-\beta_t}x_{t-1}, \beta_t\mathbb{I})$ w/ noise schedule $\beta_1,\dots,\beta_T$\\
+\textbf{SDE view of denoising diff.:} $dx_t=-\frac{1}{2}\beta_tx_tdt+\sqrt\beta_tdw_t$ (forward proc.). \\
+$dx_t=[-\frac{1}{2}\beta_tx_t-\beta_t\nabla_{x_t}\log q_t(x_t)]dt+\sqrt{\beta_t}d\bar{w}_t$ (backward proc. = denoising)
+\textbf{ELBO view of denoising diff.:} $x_t=\sqrt{1-\beta_t}x_{t-1}+\sqrt{\beta_t}\epsilon_t, \; \epsilon_t\sim\mathcal{N}(0,\mathbb{I})$. \\
+$q$: kernel \& marginal probs. of fwd. Markov chain; $p_\theta$: time-rev. chain.\\
+\textrightarrow $\ln p_\theta(x_0)=\ln\int q(x_{1:T}|x_0)\frac{p_\theta(x_{0:T})}{q(x_{1:T}|x_0)}dx_{1:T} \geq \mathbb{E}_q[\ln\frac{p_\theta(x_{0:T})}{q(x_{1:T}|x_0)}|x_0]$. \\
+Exploiting Markov property, can break up ELBO into log-ratios per step: \\
+$\ln p_\theta(x_0)\geq \sum_{t=0}^TL_t$, which is defined as: $\mathbb{E}[\ln p_\theta(x_0|x_1)]$ if $t=0$, as $-D(q(x_T|x_0)||\pi)$ if $t=T$, and as $-D(q(x_{t-1}|x_t, x_0)||p_\theta(x_{t-1}|x_t))$ otherwise. \textbf{Note:} $x_T \sim \pi$ (noise distr.). \\
+Now, define $\alpha_t \coloneqq 1-\beta_t, \; \bar{\alpha}_t\coloneqq \prod_{i=1}^t\alpha_i, \; \bar{\beta_t}\coloneqq1-\bar{\alpha}_t$ \\
+Then $x_t=\sqrt{1-\beta_t}x_{t-1}+\sqrt{\beta_t}z_t, \; z_t\sim\mathcal{N}(0,\mathbb{I}) \implies x_t ~\sim\mathcal{N}(\sqrt{\bar{\alpha}_t}x_0, \bar{\beta}_t\mathbb{I})$\\
+Using Bayes' rule on $x_{t-1}|x_t,x_0$: $q(x_{t-1}|x_t, x_0)=\frac{1}{Z}q(x_t|x_{t-1},x_0)q(x_{t-1}|x_0)$ $=\frac{1}{Z}\exp\left(-\frac{1}{2} \left[\left(\frac{1}{1-\bar{\alpha}_{t-1}}+\frac{\alpha_t}{\beta_t}\right)x_{t-1}^2-2\left(\frac{\sqrt{\bar{\alpha}_{t}}x_t}{\beta_t}+\frac{{\sqrt{\bar{\alpha}_{t-1}}x_0}}{1-\bar{\alpha}_{t-1}}\right)x_{t-1}+\cdots\right]  \right)$. Bringing this into the form $\frac{1}{Z}\exp\left( -\frac{1}{2}a\left[ x_{t-1}^2 - 2\frac{b}{a}x_{t-1}+\cdots \right] \right)$ and completing the square gives $\propto \exp\left( -\frac{1}{2}a\left(x_{t-1} - \frac{b}{a} \right)^2 \right)$.\\
+Hence, $q(x_{t-1}|x_t,x_0)=\mathcal{N}(m(x_t,x_0,t),\tilde{\beta}_t\mathbb{I})$, with $m(x_t,x_0,t)=\frac{\sqrt{\alpha}_t(1-\bar{\alpha}_{t-1})}{1-\bar{\alpha}_t}x_t+\frac{\sqrt{\bar{\alpha}_{t-1}}\beta_t}{1-\bar{\alpha}_t}x_0$, and $\tilde{\beta}_t=\frac{1-\bar{\alpha}_{t-1}}{1-\bar{\alpha}_t}\beta_t$.\\
+Rewrite $x_0$ in terms of $x_t$ and $\epsilon \sim \mathcal{N}(0, \mathbb{I})$: We know $x_t ~\sim\mathcal{N}(\sqrt{\bar{\alpha}_t}x_0, \bar{\beta}_t\mathbb{I})$; thus $x_t=\sqrt{\bar{\alpha}_t}x_0+\bar{\beta}_t\epsilon=\dots\implies x_0=\frac{1}{\sqrt{\bar{\alpha}_t}}x_t - \frac{\sqrt{1-\bar{\alpha}_t}}{\sqrt{\bar{\alpha}_t}}\epsilon$. \\
+Plug this into $m(x_t,x_0,t)$ to get $m(x_t,\epsilon,t)=\frac{1}{\sqrt{\alpha_t}}(x_t-\frac{\beta_t}{\sqrt{1-\bar{\alpha}_t}}\epsilon)$. Hence, $q(x_{t-1}|x_t, \epsilon)=\mathcal{N}(m(x_t,\epsilon,t), \tilde{\beta}_t\mathbb{I})$.\\
+Now, fix $p_\theta(x_{t-1}|x_t)$ to be Gaussian with variance $\tilde{\beta}_t$ and mean defined as above, \textbf{but} we predict $\epsilon$ by a NN $\epsilon_\theta(x_t,t)$! I.e., $p_\theta(x_{t-1}|x_t)=\mathcal{N}(m(x_t,\epsilon_\theta,t),\tilde{\beta}_t\mathbb{I})$. To generate samples similar to training data, we would like to max. $\ln p_\theta(x_0)$ for training sample $x_0$. \textrightarrow Max. lower bound from above (while enforcing $p_\theta(x_0|x_1)=q(x_0|x_1)$): $L_t=\dots=\rho_t||\epsilon-\epsilon_\theta||^2_2$ with $\rho_t\coloneqq\frac{\beta_t^2}{2\tilde{\beta}_t \alpha_t(1-\bar{\alpha}_t)}$. Thus, max. ELBO on $\ln p_\theta(x_0)$ is equivalent to min. $\rho_t||\epsilon-\epsilon_\theta(x_t,t)||^2_2$\\
+Using further simplification, we get \( h(\theta)(x)=\frac{1}{T}{\sum_{t=1}^T} \mathbf{E}[||\epsilon-\epsilon_\theta(\sqrt{\overline{\alpha_t}}x_0+\sqrt{1-\overline{\alpha_t}}\epsilon,t)||^2]\). For training, this means: randomly pick data point, time index $t$ and noise realization $\epsilon$ to predict $\epsilon_\theta$ and minimize MSE-loss.\\
+\vspace{0.01cm}\dotfill\vspace{0.01cm}\\
+\textbf{Rem. 1}: Possible to perform diffusion in latent space for better performance and increased generality\\
+\textbf{Rem. 2}: Noise sched. dictates smooth trans. between noise and output\\
+\textbf{GANS vs. Diffusion}
+\begin{itemize}
+    \item \textbf{Training Obj}: Diffusion: minimize reconstr. loss for noise pred. or data reconstr. GANs: Advers. setup
+    \item \textbf{Training Setup:} Diffusion: Stable due to non-advers. setup (requires many training steps, hyperparam tuning), GANS: prone to instability
+    \item \textbf{Output Quality:} Diversity may suffer in GANs due to mode collapse
+    \item \textbf{Gen Process:} Iterative process starting from noise to output, GAN: Single forward pass to create sample
+    \item \textbf{Comp cost:} Computationally expensive due to iterative sampling, GANs: Efficient during inference
+\end{itemize}

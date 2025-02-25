@@ -1,0 +1,45 @@
+\section{Optimization}
+\subsection{Initialization}
+Parameters are sampled independently. Most common are: \\ $\theta_i^0 \sim \mathcal{N}(0,\sigma_i^2)$ or $\theta_i^0 \sim \text{Unif}[-\sqrt{3}\sigma_i, \sqrt{3}\sigma_i]$ but how to choose $\sigma_i$?\\
+\textbf{LeCun:} $w_{ij} \sim^{\text{iid}} \text{Unif}[-a,a]$, $a := 1/\sqrt{n}$, $b_i = 0$ for i-th unit in n-inputs layer
+\begin{itemize}
+    \item if the n inputs to a unit are iid zero mean RV's with variance $\gamma^2$ their sum will have Var $n\gamma^2$ so dividing by $\sqrt{n}$ counteracts this growth and stabalizes the variance
+    \item zero mean assump. violated if activation fct not symmetric around 0
+    \item More compatible with tahn than logistic
+    \item While variance of activation reproduce the shape of the distribution will change: $Z = \prod_{i = 1}^D Z_i$ ; $Z_i \sim^{\text{iid}} \text{Unif}[0,1]$ then $p_Z(z) = -\log(z)^{D-1}/(D-1)!$
+\end{itemize}
+\textbf{Glorot initialization}
+Initialize weights in layer with m units and n inputs as $w_{ij} \sim^{\text{iid}} \text{Unif}[-\sqrt{3\gamma}, \sqrt{3\gamma}]$ where $\gamma := 2/(n+m)$\\
+To help with exploding/vanishing gradients (derived from backprop)\\
+\textbf{He init: }Approach for ReLU activations. When weights in relu layer are init. symmetrically, number of active units is 1/2 in exp. so only n/2 of n inputs are propogated forward => increase var. in the init by factor of 2.\\
+$w_{ij} \sim^{\text{iid}} \mathcal{N}(0,\gamma)$ or $w_{ij} \sim^{\text{iid}} \text{Unif}[-\sqrt{3\gamma}, \sqrt{3\gamma}]$ where $\gamma := 2/n$\\
+\textbf{Orthogonal init: } \textbf{Non-iid} init scheme. $\frac{1}{\sqrt{m}}W \sim \text{Unif}(O(m))$ s.t. $W^TW = WW^T = mI$ where m is the indentical dimension of inputs and outputs.\\
+Offers benefits in forward/backward -prop in DNN as eigenvalues of an orthogonal matrix are $\{\pm 1\}$
+\subsection{Weigth Decay}
+\textbf{$L_2$ regularizer:} $\Omega_{\mu}(\theta) = \frac{\mu}{2}||\theta||_2^2$, $\mu \geq 0$\\
+Adding $L_2$ regularizer to emperical loss E will include weight decay in GD: $\Delta \theta = -\eta\nabla E(\theta) - \eta\nabla\Omega_{\mu}(\theta) = -\eta \nabla E(\theta) - \eta \mu\theta$ => params are pulled back to the origin by $-\nabla \Omega_{\mu}$ (strength controlled by $\mu$).\\
+\textbf{Local loss landscape}
+\begin{itemize}
+    \item $\theta^*_{\mu} = (H + \mu I)^{-1}H\theta^*$ where $H := \nabla^2E(\theta^*)$ and $\theta^*$ is min of $E(\theta)$
+    \item $H = Q'\Lambda Q$ => $(H + \mu I)^{-1}H = Q'(\Lambda + \mu I)^{-1}\Lambda Q = Q' \text{diag}(\frac{\lambda_i}{\lambda_i + \mu})Q$. So along direction in param space with large eigenvalues $\lambda_i >> \mu$ weigth decay has vanishing effect while directions with $\lambda_i << \mu$ the min $\theta^*$ is shrunk
+\end{itemize}
+\textbf{Generalization: }
+\begin{itemize}
+    \item Minima with smaller weight norms are \textbf{not} corr. with better generaliz.
+    \item Weight decay projects out irrelevant directions in ill-posed problems
+    \item Selectively shrinks weights and suppresses noise
+\end{itemize}
+\subsection{Dropout}
+\textbf{Co-adoptation:} One unit depends on the presence of other units which leads to overfitting => dropout unit i with prob $(1-\pi_i)$\\
+\textbf{Ensemble} Each instant of drop-out defines a sub-network. $p(y|x) = \sum_{b\in \{0,1\}^R} p(b)p(y|x;b)$ where $R := \#$units and $p(b) = \prod_{i = 1}^R \pi_i^{b_i}(1-\pi_i)^{1-b_i}$\\
+=> Dropout is like SGD on ensemble, pick a random sub-network (of $2^R$ possible) and perform a gradient step.\\
+\textbf{Test time:} scale $\Tilde{w}_{ij} \leftarrow \pi_jw_{ij}$ by prob of upstream unit being active
+\subsection{Convexity, Smoothness and GD}
+\begin{itemize}
+    \item $\ell: \mathbb{R}^d \to \mathbb{R}$ is convex if $\forall w, w^\prime \in \mathbb{R}^d, \forall \lambda \in[0,1]: \ell(\lambda w + (1-\lambda) w^\prime) \leq \lambda \ell(w) + (1-\lambda) \ell(w^\prime)$
+    \item For a diff. fct $l$: $\ell(w) \geq \ell(w') + \nabla \ell(w')^T (w-w')\Leftrightarrow \ell$ is convex
+    \item If $\ell$ is diff. \& $L$-smooth, then $\ell(w) \leq \ell(w^\prime)+\nabla \ell(w^\prime)^\intercal(w-w^\prime)+\frac{L}{2}||w-w^\prime||$
+    \item Strongly convex: $\ell(w) \geq \ell(w') + \nabla \ell(w')^T (w-w') + \frac{\mu}{2}||w-w'||_2^2$
+    \item GD step $s_t \coloneqq w_{t+1}-w_t = -\frac{1}{\lambda}\nabla \ell (w_t)$ (with $\lambda >0$) minimizes a quadr. reg. 1st-order Taylor e.: $s_t =\underset{s}{\text{argmin}} \quad \ell (w_t) +s^\intercal \nabla \ell(w_t)+\frac{\lambda}{2}||s||^2_2 $ \\
+    $\implies$ If $\ell$ is $L$-smooth, and $\lambda >\frac{L}{2}$, then $s_t$ is guaranteed to decrease the objective, i.e., $\ell(w_{t+1})\leq\ell(w_t)$        \item GD strictly follows the gradient in negative direction, so its trajectory is always perpendicular to the level set
+\end{itemize}

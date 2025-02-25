@@ -1,0 +1,38 @@
+\input{setup}
+
+% Set global script size
+\makeatletter
+\newcommand\setfontsize[3]{\fontsize{#1}{#2}\selectfont}
+\makeatother
+
+% Adjust math sizes
+\DeclareMathSizes{5}{5}{4}{3} % For \scriptsize use \DeclareMathSizes{8}{8}{6}{5}
+
+% Customize itemize environment
+\setlist[itemize]{noitemsep, nolistsep, left=0pt}
+
+% Customize enumerate environment
+\setlist[enumerate]{noitemsep, nolistsep, left=0pt, topsep=0pt, itemsep=0pt, parsep=0pt}
+
+\begin{document}
+\include{contents/def}
+
+
+\tiny % Reduce font size
+\begin{multicols*}{5}
+\input{contents/neuroshit}
+\input{contents/Linear}
+\input{contents/Backprop}
+\input{contents/convnets}
+\input{contents/RNNs}
+\input{contents/transformers}
+\input{contents/geometric_dl}
+\input{contents/optimization}
+\input{contents/Regularization-Propagation}
+\input{contents/theory}
+\input{contents/GenModels}
+\input{contents/advanced_topics}
+\input{contents/Miscellaneous}
+\input{contents/pycode}
+\end{multicols*}
+\end{document}

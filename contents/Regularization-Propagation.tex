@@ -1,0 +1,44 @@
+\section{Regularization \& Propagation}
+\subsection{Neural Network with Skip connections}
+Let $x \in \mathbb{R}^d$ be the input to the network, $y_i \in \mathbb{R}^d$ the intermediate representations, $\Theta_i \in \mathbb{R}^{d\times d}$ the trainable parameters, $f: \mathbb{R}^d \to \mathbb{R}^d$ a smooth activation function, and $L: \mathbb{R}^d \to \mathbb{R}^+$ the (smooth) loss function. Also, let $\alpha > 0$ be a real parameter that controls the strength of the residual branch. Consider the residual network: \\
+$y_1 = \alpha f(x, \Theta_1) + x, \quad y_2 = \alpha f(y_1, \Theta_2) + y_1 \quad \dots \quad y_n = \alpha f(y_{n-1}, \Theta_n) + y_{n-1}$\\
+\text{with loss} $ l = L(y_n)$ \\
+\textbf{For} $\mathbf{n=1}$, we have $\frac{\partial l}{\partial x} = \frac{\partial L(y_1)}{\partial y_1} \frac{\partial y_1}{\partial x} = \frac{\partial L(y_1)}{\partial y_1} \left(\alpha\frac{\partial f(x, \Theta_1)}{\partial x} +\mathbb{I}_d\right) \in \mathbb{R}^{1\times d}$. \\
+\textbf{For general} $\mathbf{n>1}$, we have for some $1 \leq k <n$: 
+$\frac{\partial l}{\partial \Theta_k} = \frac{\partial l}{\partial y_n} \frac{\partial y_n}{\partial y_{n-1}} \cdots \frac{\partial y_k}{\partial \Theta_k} = \\
+\frac{\partial L(y_n)}{\partial y_n}\left(\frac{\alpha\partial f(y_{n-1}, \Theta_n)}{\partial y_{n-1}} + \mathbb{I}_d \right) \cdots \left(\frac{\alpha\partial f(y_{k}, \Theta_{k+1})}{\partial y_{k}} + \mathbb{I}_d \right) \cdot  \frac{\alpha\partial f(y_{k-1}, \Theta_k)}{\partial \Theta_k}$\\
+\textbf{Note}: We add $1$s on the "diagonal" terms, which helps for optimization.
+
+\subsection{Ridge Regression}
+The ridge regression solution for a linear model is given by \\
+$\hat{w} = \text{argmin}_{\scriptscriptstyle w \in \mathbb{R}^d} \|Xw - y\|_2^2 + \frac{\lambda}{2} \|w\|_2^2 = (X^\intercal X + \lambda I)^{-1} X^\intercal y$. Using the SVD $X = UDV^\intercal$, we get for the predictions $\hat{y}=X\hat{w}=\sum_{i=1}^d u_i \frac{d_i^2}{d_i^2+\lambda}u_i^\intercal y$, where $u_i$ are the left-singular vectors of $X$. \\
+\textbf{For OLS}, we get predictions $\tilde{y} = X\tilde{w}=X(X^\intercal X)^{-1}X^\intercal y = \sum_{i=1}^d u_iu_i^\intercal y$.
+\textrightarrow In ridge regression, the contributions of the left-singular vectors of $X$ associated with small singular values are shrunk. In OLS we just project onto the column space of X. \\
+\textbf{Remark} (Connection to MAP inference): Consider the model $y = Xw + \epsilon$, with $\epsilon \sim \mathcal{N}(0, \sigma^2 \mathbb{I})$ and $w \sim \mathcal{N}(0, \tau \mathbb{I})$. Our objective using MAP is $\hat{w}=\text{argmax}_{w\in\mathbb{R}^d} p(w|X,y) = \dots = \text{argmin}_{w\in\mathbb{R}^d}||Xw-y||_2^2+\frac{\sigma^2}{\tau}||w||^2_2$, i.e., with normal noise and an isotropic normal prior on the parameters, we recover ridge regression. Note that: $\tau \downarrow \implies \lambda \uparrow$ (a strong prior belief that $w$ is close to $0$ implies a strong regularization)
+
+\subsection{Lasso Regression}
+The lasso regression solution for a linear model is given by \\
+$\hat{w} = \text{argmin}_{\scriptscriptstyle w \in \mathbb{R}^d} \|Xw - y\|_2^2 + \frac{\lambda}{2} \|w\|_1$. Consider the $L^1$-regularized second-order approx. of an arbitrary loss fct.
+ around an optimal point $\theta^*$: \\
+$\mathcal{R}_{L^1}(\theta) \approx \mathcal{R}(\theta^*) + \frac{1}{2}(\theta-\theta^*)^\intercal \mathbf{H}(\theta-\theta^*)+\lambda||\theta||_1$.\\
+\textbf{Assuming} that $\mathbf{H}=\text{diag}(h_1,...,h_d)$, with $h_i>0$, this is equivalent to $\mathcal{R}_{L^1}(\theta) \approx \sum_{i=1}^d \left[\frac{h_i}{2}(\theta_i - \theta_i^*)^2 + \lambda|\theta_i| \right] + \text{const.}$ We find the following expression for those $\{\theta_i\}_{i=1}^d$ that minimize the approximation: \\
+$\theta_i=\text{sign}\left(\theta_i^*\right)\cdot max\left(0, \left|\theta_i^*\right| - \frac{\lambda}{h_i}\right)$. We distinguish the following cases: \\
+\begin{enumerate}
+    \item $0 < \theta_i^* \leq \lambda/h_i \implies $ optimal $\theta_i$ is 0: Regularization term overwhelms loss functions, pushing the value of $\theta_i$ to zero
+    \item $0 <  \lambda/h_i < \theta_i^*$: Regularization shifts the value of $\theta_i$ by a distance of $\lambda/h_i$
+    \item $-\lambda/h_i \leq \theta_i^*$ and $\theta_i^* < -\lambda/h_i <0$ are analogous
+\end{enumerate}
+
+\textbf{Remark:} $L^2$-regularization with a diagonal Hessian results in \textbf{scaling} the optimal parameters, i.e., $\theta_i=\frac{h_i}{hi+\lambda}\theta_i^*$, meaning that when $\theta_i^*$ is nonzero, the optimal $\theta_i$ will be nonzero as well.
+
+\subsection{Connection between early stopping and $\textcolor{black}{L^2}$-regularization}
+Let $\lambda$ be the weight decay factor, $\eta$ the learning rate, and $\tau$ the (early) stopping time. Then, for a linear model with a quadratic approximation of the loss function, and assuming $\lambda_i/\lambda \ll 1$ and $\eta\lambda_i \ll 1$, where $\lambda_i$'s are the eigenvalues of the Hessian of the quadratic approximation, it holds that: $\tau \approx \frac{1}{\eta \lambda}$. \\
+\textrightarrow The number $\tau$ of training iterations is \textbf{inversely proportional} to the $\textcolor{black}{L^2}$-regularization parameter $\lambda$. Thus, optimizing for many epochs is similar to enforcing a regularization with a relatively low coefficient and vice versa.
+
+\subsection{Batch and Weight Normalization}
+Batch normalization normalizes the data projected on the weight vector before feeding it into the (sufficiently smooth) function $l:\mathbb{R} \times \mathbb{R} \to \mathbb{R}^+$ as follows: $f(w; g, \gamma) = \mathbb{E}_{x,y}[l\left(\text{BN}(x^\intercal w; g, \gamma), y\right)]$, where \\
+$\text{BN}(x^\intercal w; g,\gamma ) = g \frac{x^\intercal w - \mathbb{E}[x^\intercal w]}{\text{Var}[x^\intercal w]^{1/2}} +\gamma$. We omit $\gamma$ w.l.o.g. in the following. \\
+With $x$ being zero-mean, we have $\text{Var}[x^\intercal w]=w^\intercal Sw=||w||_S^2$, where $S=\text{Var}(x)$. Then, $\text{BN}(x^\intercal w;g)=g\frac{x^\intercal w}{||w||_S}$, and thus $\text{BN}(x^\intercal w; g)=x^\intercal \tilde{w}(w, g)$, with $\tilde{w}(w,g) \coloneqq g \frac{w}{||w||_S}$. This means that under certain assumptions, batch normalization corresponds to a \textbf{re-parametrization of the weight space}. \\
+On the other hand, \textbf{weight} normalization parametrizes the weights as $w = g \frac{v}{||v||_2}$. Hence, WN is the same as BN (under certain assumptions) with the covariance matrix replaced by the identity matrix.\\
+\textbf{Remark:} Both BN and WN are linear scale invariant because both perform a scaling of the weights by a norm. \\
+\textbf{Remark:} Benefits of WN over BN include: (i) it is easier to use in inference mode; (ii) it permits distributed optimization because the normalization does not include dependencies between batch samples.

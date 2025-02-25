@@ -1,0 +1,82 @@
+\section{Recurrent Neural Networks}
+Idea: Provide more flexibility than CNNs to model temporal/sequential data (must specify filter width in CNNs).
+
+\subsection{Setup}
+\textbf{Observation sequence}: $x^1,x^2,x^3,\dots$, with $x^t \in \mathbb{R}^n$ and \textbf{Hidden states}: $z^1,z^2,z^3,\dots$, with $z^t \in \mathbb{R}^m$. There are two operators:
+\begin{itemize}
+    \item \textbf{Connecting $x$ to hidden states $z$}: $F[U,V](z,x) \equiv \phi(Uz + Vx)$, with $U \in \mathbb{R}^{m\times m}, V \in \mathbb{R}^{m\times n}$.
+    \item \textbf{Output map (optional)}: $G[W](z) \equiv \psi(Wz)$, where $W \in \mathbb{R}^{q\times m}$.
+\end{itemize}
+
+\textbf{Rem. 1:} Both $F$ and $G$ are \emph{time-invariant}, (i.e., shared parameters). \\
+\textbf{Rem. 2:} With a fixed time horizon $t \leq T$, the unrolled RNN is equivalent to a feedforward network with $T$ hidden layers. The main difference is the sharing of parameters between layers. \\
+\textbf{Rem. 3:} (\textbf{Bi-directional RNN}) Hidden state evolution does not have to follow direction of time. One can define a reverse order sequence \\ 
+$\Tilde{z}^t = \phi(\Tilde{U}z^{t+1} + \Tilde{V}x^t)$ and modify the output map to be $\hat{y}^t = \psi(Wz^t + \Tilde{W}\Tilde{z}^t)$\\
+\textbf{Rem. 4:} (\textbf{Stacked RNN}) Possible to add depth by connecting layers horizontally: $z^{t,l} = \phi(U^l z^{t-1,l} + V^l z^{t, l-1})$, where $z^{t,0} \equiv x^t$. Outputs are generated based on the last hidden activations $z^{t,L}$
+
+\subsection{Backpropagation through time}
+
+\begin{itemize}
+    \item Error signals at the outputs: $\textcolor{red}{\delta_k^t} = \frac{\partial h}{\partial \hat{y}_k ^t}$
+    
+    \item Train the \textbf{output weights}: $\frac{\partial h}{\partial w_{k,i}} = \sum_{t=1}^{T}\textcolor{red}{\delta_k^t} \textcolor{orange}{\Dot{\psi}_k^t} z_i^t$, with $\textcolor{orange}{\Dot{\psi}_k^t} \equiv \Dot{\psi}(w^\intercal_k z^t)$
+    
+    \item Train the \textbf{input weights}: $\frac{\partial h}{\partial v_{i,j}} = \sum_{t=1}^T \textcolor{darkgreen}{\frac{\partial h}{\partial z_i^t}} \textcolor{purple}{\Dot{\phi}_i^t} x_j^t$, \\with $\textcolor{purple}{\Dot{\phi}_i^t} \equiv \Dot{\phi}(v_i^\intercal x^t)$
+    
+    \item which needs... $\textcolor{darkgreen}{\frac{\partial h}{\partial z_i^t}} = \sum_{k = 1}^K \sum_{s=t}^T \textcolor{red}{\delta_k^s} \sum_{j=1}^m \frac{\partial \hat{y}^s_k}{\partial z^s_j} \frac{\partial z^s_j}{\partial z_i^t}$, with $\frac{\partial \hat{y}^s_k}{\partial z^s_j} = \textcolor{orange}{\Dot{\psi}^s_k} w_{k,j}$
+
+    \item Train the \textbf{state-to-state weights}: $\frac{\partial h}{\partial u_{i,j}} = \sum_{t=1}^T \textcolor{darkgreen}{\frac{\partial h}{\partial z_i^t}} \textcolor{purple}{\Dot{\phi}_i^t} z_j^{t-1}$
+\end{itemize}
+
+\subsection{(In)stability of RNNs}
+In backprop. through time, the norm of the gradients is difficult to control. We have: $\frac{\partial z^T}{\partial z^0} = \Dot{\Phi}^TU \dots \Dot{\Phi}^1U$, with $\Dot{\Phi}^t \equiv \text{diag} \left(\Dot{\phi}(u^\intercal_j z^{t-1} + v^\intercal_j x^t) \right)$. \\
+For typical activations, diagonal sensitivity matrices are bounded $\Dot{\Phi}^t \leq \alpha \mathbb{I}$ ($\alpha = 1$ for ReLUs, $\alpha = 1/4$ for logistic activations). We have: \\ 
+$\left\lVert \frac{\partial z^T}{\partial z^0} \right\rVert_2 \leq (\alpha \sigma_1(U))^T$, which ... \\
+... $\rightarrow 0$  as $T \rightarrow \infty$ if we assume $\sigma_1(U) < \frac{1}{\alpha}$ (\textbf{Vanishing gradients}) \\
+... $\rightarrow \infty$ as $T \rightarrow \infty$ if we assume $\sigma_1(U)$ to be large (\textbf{Exploding gradients})
+\textrightarrow \textbf{Makes it difficult to model long-term dependencies}
+
+\subsection{Gated Memory}
+\emph{\textrightarrow Avoid short-term fluct. by controlling when memory is kept or overwritten} \\
+A gating unit takes the following form: $z^+ \equiv \sigma(G\zeta) * z$, where $z^+$ and $z \in \mathbb{R}^m$, $\sigma(G\zeta) \in (0;1)^m$ and $*$ denotes pointwise multiplication. $\sigma$ is the vector-valued logistic function, and $\zeta$ is a control input determining the relative preservation of information contained in $z$. In the limit $\sigma_i \rightarrow 0$, $z_i$ is forgotten, while the limit $\sigma_i \rightarrow 1$ preserves $z_i$
+\begin{enumerate}
+    \item \textbf{Long Short-Term Memory (LSTM)}: \\
+    Uses two gating units, a \textcolor{darkgreen}{forget gate} and a \textcolor{purple}{storage gate}: \\
+    $z^t \equiv \textcolor{darkgreen}{\sigma(F\Tilde{x}^t) * z^{t-1}} + \textcolor{purple}{\sigma(G\Tilde{x}^t) * \text{tanh}(V\Tilde{x}^t)}$. Here, $\Tilde{x}^t \equiv [x^t, \zeta^t]$ (concatenated), and $\zeta^{t+1} = \sigma(H\Tilde{x}^t) * \text{tanh}(Uz^t)$ is a control signal sequence. \\
+    \textrightarrow An LSTM has \textbf{5 weight matrices in total}: 3 gating matrices ($F, G, H$), 2 propagation matrices ($V, U$) (6 incl. output weight matrix: $W$).
+    
+    \item \textbf{Gated Recurrent Unit (GRU)}: \\
+    The GRU combines the forget and storage gates of an LSTM into a convex combination: $z^t = (1-\sigma) * z^{t-1} + \sigma * \Tilde{z}^t$, with $\sigma \equiv \sigma(G[x^t, z^{t-1}])$, and $\Tilde{z}^t \equiv \text{tanh}(V[\zeta^t * z^{t-1}, x^t])$, where $\zeta^t \equiv \sigma(H[z^{t-1}, x^t])$. \\
+    \textbf{Adv.}: $\zeta^t$ can be computed implicitly without additional recursion.\\
+    \textrightarrow Only \textbf{3 weight matrices in total} (4 incl. output weight matrix).
+
+    \item \textbf{Minimal Gated Units}: \\
+    Idea: Remove dependencies on previous hidden states from gatin mechanism: $\sigma \equiv \sigma(Gx^t)$, and $\Tilde{z}^t = Vx^t$, which also removes the squeezing of the dynamical range via tanh
+    
+\end{enumerate}
+
+\subsection{Linear Recurrent Models}
+\textbf{Background}: Classical RNNs lack sufficient parallelization during learning. Transformers, on the other hand, scale quadratically and not just linearly in context length. \textrightarrow Linear recurrent models like S4 or Mamba avoid non-linear dependencies along the chain of hidden states.
+\begin{itemize}
+    \item \textbf{Linear Recurrent Unit (LRU)}: \\
+    $z^{t+1} = Az^t + Bx^t$. The idea is that we can parametrize and run this recurrence over the complex numbers in a way that the architecture \& parametrization guarantee stability: \\
+    \textbf{(1) Diagonalize the evolution matrix} $A$ (assuming it is non-defective) over $\mathbb{C}$ as follows: $A = P\Lambda P^{-1}$, where $\Lambda \equiv \text{diag}(\lambda_1,...,\lambda_m)$, and $\lambda_i \in \mathbb{C}$. \\
+    \textbf{(2) Perform a change of basis}: $\zeta^{t+1} = \Lambda\zeta^t + Cx^t$, with $\zeta^t \equiv P^{-1}z^t$, and $C \in \mathbb{C}^{m \times n}$. We make this equation our recurrence.\\
+    \textbf{(3)} \textbf{Stability} of this (linear) system requires the modulus of all eigenvalues to be bounded: $\text{max}_j|\lambda_j| \leq 1$, where $|a+ib| \equiv \sqrt{a^2 + b^2}$ (modulus) \textrightarrow spectral radius of $A$ (or $\Lambda$) \\
+    \textbf{(4)} \textbf{Control the spectral radius}: Use the polar form to represent complex number as $z = r(\text{cos}(\phi) + \text{sin}(\phi))$, with modulus $r = |z| \geq 0$, and phase $\phi \in [0; 2\pi)$. Stable parametrization with double exp. for the $\lambda$'s: \\
+    $\lambda_i = \text{exp}(-\text{exp}(\nu_i) + i\phi_i) \in (0; 1)$. This can be done by sampling at initialization from the ring defined by $I$: \\
+    $\phi_i \sim \text{Uni}[0; 2\pi], \quad r_i \sim \text{Uni}[I], \quad I \subseteq [0; 1], \quad \text{exp}(\nu_i) = -\ln(r_i)$ \\
+    \textbf{(5)} \textbf{Move the non-linearities into the output map} to compensate for the simpler linear recurrence: $y^t = \text{MLP}(\text{RE}(Gz^t)), \quad G \in \mathbb{C}^{k \times m}$. \\
+    \textrightarrow The resulting model is universal as a seq-2-seq map
+\end{itemize}
+
+\subsection{RNN Models for Sequences}
+Generative model $p\left(y^{1:T}|x^{1:T}\right) \approx \prod_{t=1}^T p\left(y^t | x^{1:t}, y^{1:t-1}\right)$. Then we have $x^{1:t} \overset{F}{\mapsto} z^t$ and to get a distribution and not a deterministic output, the deterministic computation of the RNN is augmented with a final probabilistic step with a parametric family $z^t \mapsto \mu^t, \quad \mu^t \mapsto p(y^t; \mu^t)$. This could be a softmax: $p(y; \mu) = \frac{\text{exp}(\mu_y)}{\sum_\nu \text{exp}(\mu_\nu)}, \quad y \in \{1,...,k\}, \quad \mu \in \mathbb{R}^k$. \\
+\textbf{Note.} We need to feed back outcome of stochastic generation because otherwise, $y^t$ will depend on $y^{1:t-1}$ only through $z^t$ which is too strong an independence assumption to make.
+
+\subsection{Teacher Forcing}
+Fixing the problem that predicted sequences may quickly diverge from the target one for long-range dependencies, resulting in error signal of little value. Teacher forcing feeds back the target sequence $y^*$ during training, instead of the generated outputs. \textbf{Adv.}: No lasting effect of preds. during training as they get overwritten by ground-truth. \textbf{Disadv.}: Creates divergence between training \& testing because it can only be applied during training (\textbf{Exposure Bias}).
+
+\subsection{\emph{seq-2-seq}}
+Encoder-Decoder based architecture. The encoder maps input sequence to fixed dimensional activation vector via encoder RNN without outputs: $z^0 \coloneqq 0, \quad (x^t, z^{t-1}) \mapsto z^t \quad \forall 1 \leq t \leq T$. Then, a decoder RNN without inputs is used: $\zeta^0 \coloneqq z^T, \quad (y^{s-1}, \zeta^{s-1}) \mapsto \zeta^s, \quad \zeta^s \overset{\sim}{\mapsto} y^s$. \\
+As before, outputs are fed back and next output is generated stochastically based on the hidden state of the RNN.

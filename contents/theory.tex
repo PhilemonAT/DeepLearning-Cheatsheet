@@ -1,0 +1,185 @@
+\section{Theory}
+
+
+
+\subsection{Bayesian Linear Regression:} 
+Let  \(y=f(x) + \epsilon, \, f(x)=\phi(x)^\top w, \quad \Phi=[\phi(x_1), \ldots, \phi(x_n)], \quad y|\Phi, w\sim \mathcal{N}(\Phi^T w, \sigma^2 I), \, \text{ and } w\sim \mathcal{N}(0, \Sigma)\). Then,
+\begin{itemize}
+    \item posterior: \(w|y, X \sim \mathcal{N}\left(Q^{-1} \frac{\Phi y}{\sigma^2}, Q^{-1}\right)\) with \(Q = \left(\frac{\Phi \Phi^\top}{\sigma^2} + \Sigma^{-1}\right)\)
+    \item posterior pred.: \(\phi_\star^\top w \sim \mathcal{N}\left(\phi_\star^T Q^{-1}\frac{\Phi y}{\sigma^2}, \phi_\star^\top Q^{-1} \phi_\star\right)\), where \(\phi(x^\star)=\phi_\star\)
+\end{itemize}
+Note that for \(\Phi \in \mathbb{R}^{N\times n}, \, N>>n\) the computation of the matrix inverse above is of order \(\mathcal{O}(N^3)\). Hence, using Woodburry's identity and the pushthrough identity we can reduce the complexity to \(\mathcal{O}(n^3)\):
+\(f_\star(x_\star)\sim \mathcal{N}(\phi_\star ^\top \Sigma \Phi (\Phi^T \Sigma \Phi + \sigma^2 I_n)^{-1}y, \phi_\star^\top\Phi \phi_\star - \phi_\star^\top \Sigma\Phi(\sigma^2 I_n + \Phi^\top \Sigma \Phi)^{-1} \Phi^\top \Sigma \phi_\star)\), where the feature representation only enters in form of a kernel \(\mathcal{K}(x, x^\prime)=\psi(x)^\top \psi(x^\prime)\in \mathbb{R}\) with \(\psi(x)=\Sigma^{1/2}\phi(x)\)
+
+\textbf{Bayesian Ensembling:} We use  relative posterior weighting to average outputs of set of DNNs. 
+
+$
+f(\Theta)(x) = \sum_{i=1}^{n} \frac{p(\theta^i \mid S)}{\sum_{j=1}^{n} p(\theta^j \mid S)} f(\theta^i)(x) = \sum_{i=1}^{n} \frac{\exp[-E(\theta^i)]}{\sum_{j=1}^{n} \exp[-E(\theta^j)]} f(\theta^i)(x)
+$
+
+The above is feasible even if we do not have direct access to the normalized posterior, we can still use unnormalized posterior via energy function $E$.\\
+\textbf{Markov Chain Monte Carlo:} It is a standard approach to sampling from high-dimensional posterior distributions. We define a Markov chain (random sequence) in parameter space $\theta^0, \theta^1, \theta^2, ...,$ s.t. $\theta^{t+1} | \theta^t \sim \Pi$.We choose next parameter based on previous one w.r.t. $\Pi$, which is Markov kernel of the chain. Posterior is the stationary distribution of the Markov chain. Lastly, one usually needs burn-in period for better estimates.
+
+\textbf{Metropolis-Hastings:} This is a way of specifying the kernel. We define detailed balance condition and Markov kernel s.t. 
+
+ $p(\theta_1 \mid S) \Pi(\theta_2 \mid \theta_1) = p(\theta_2 \mid S) \Pi(\theta_1 \mid \theta_2)
+ $.
+ 
+ If this condition holds, the resulting Markov chain is time-reversible and
+ has the desired posterior as its unique stationary distribution
+ 
+\textbf{Remark:}  Markov chains can have stationary distributions without fulfilling detailed balance.
+
+In MH sampling, we start from initial $\tilde{\Pi}$ but then modify the transition probability via an acceptance/rejection step to achieve an effective $\Pi$ meeting detailed balance. Assume that we always want to accept the
+ transition in one of the directions (increasing probability usually),
+ but possibly reject it with some probability in the opposite direction. Thus, we get
+ 
+ $p(\theta_1|\mathcal{S}) \underbrace{\tilde{\Pi}(\theta_2|\theta_1)A(\theta_2|\theta_1)}_{=:\Pi(\theta_2|\theta_1)} \stackrel{!}{=} p(\theta_2|\mathcal{S}) \underbrace{\tilde{\Pi}(\theta_1|\theta_2)A(\theta_1|\theta_2)}_{=:\Pi(\theta_1|\theta_2)}
+.
+$
+
+With the desired one-sided structure of acceptance probabilities $A(\theta_2 \mid \theta_1) = 1 \lor A(\theta_1 \mid \theta_2) = 1$ which leads to the unique choice 
+
+$A(\theta_1 \mid \theta_2) = \min \left\{ 1, \frac{p(\theta_1 \mid S) \tilde{\Pi}(\theta_2 \mid \theta_1)}{p(\theta_2 \mid S) \tilde{\Pi}(\theta_1 \mid \theta_2)} \right\}.
+$
+
+\textbf{ Hamiltonian Monte Carlo:} Consider an energy function equalt to negative log posterior $E(\theta) = - \sum_{x, y} \log p(y \mid x; \theta) - \log p(\theta).$ This potential function is augmented by momentum $v$ and kinetic energy term s.t. $H(\theta, v) = E(\theta) + \frac{1}{2} v' M^{-1} v.$ Then the joint probability distribution is given by Gibbs distribution 
+$p(\theta, v) \propto \exp[-H(\theta, v)].$ Hamiltonian dynamics reformulate the Euler-Lagrange equations as$
+\dot{v} = -\nabla E(\theta), \quad \dot{\theta} = v.$
+In Hamiltonian Monte Carlo (HMC), these are discretized using a step size \(\eta\):
+$
+\theta^{t+1} = \theta^t + \eta v^t, \quad v^{t+1} = v^t - \eta \nabla E(\theta^t)
+$
+HMC relates to gradient descent with momentum and samples the posterior correctly, but it is slow. To scale HMC for stochastic gradients, Langevin Dynamics is used to make the posterior invariant under stochastic updates.
+
+\textbf{ Langevin Dynamics:}  An important contribution was the introduction of Langevin dynamics with \textcolor{darkgreen}{friction}
+and \textcolor{darkred}{noise process}\\
+$
+\dot{\theta} = v
+$, \ \ \
+$
+dv = -\nabla E(\theta) \, dt - \textcolor{darkgreen}{Bv \, dt} + \textcolor{darkred}{ \mathcal{N}(0, 2B \, dt)}
+$.
+Friction reduces the momentum and dissipates kinetic energy. Wiener noise process injects stochasticity. This SDE can be discretized via symplectic Euler, resulting in (\textcolor{darkgreen}{friction}, \textcolor{darkred}{stochastic}, \textcolor{darkblue}{extra noise}):
+ 
+$
+\theta^{t+1} = \theta^t + \eta v^t
+$, \ \ \
+$
+v^{t+1} = \textcolor{darkgreen}{(1 - \eta \gamma) v^t} 
+- \textcolor{darkred}{\eta s \nabla \tilde{E}(\theta)} 
++ \textcolor{darkblue}{\sqrt{2 \gamma \eta} \, \mathcal{N}(0, I)}
+$,
+
+where $\tilde{E}$ is a stochastic potential function, which includes an empirical loss over a random
+ minibatch of data. The friction leads to an exponential damping with time.
+
+\subsection{Gaussian Processes}
+A Gaussian Process is a collection of random variables, any finite number of which have a joint Gaussian distribution. It is completely specified by its mean function $m(x)=\mathbb{E}[f(x)]$ and covariance function \(k(x, x^\prime)=\mathbb{E}[(f(x)-m(x))(f(x^\prime)-m(x^\prime))]\) and we write $f(x)\sim \mathcal{GP}(m(x), k(x, x^\prime))$. 
+
+\textbf{Exa:} A Bayesian linear model $f(x)=\phi(x)^\top w, \, w\sim \mathcal{N}(0, \Sigma)$ is a Gaussian Process since for any $m, \quad (f(x_1), \ldots, f(x_m))$ it holds that \(\sum_{i=1}^m \alpha_i f(x_i) = \sum_{i=1}^m \alpha_i \phi(x_i)^\top w = (\sum_{i=1}^m \alpha_i \phi(x_i))^\top w \) which, as a linear combination of Gaussians, is Gaussian. Hence, $f(x) \sim \mathcal{GP}(0, \phi(x)^\top \Sigma \phi(x^\prime))$.
+
+\textbf{Linear Unit \& Layer:} Consider a linear unit with $n$ inputs and a random Gaussian weight vector $w \sim \mathcal{N}\left(0, \frac{\sigma^2}{n} I_{n \times n}\right)
+$. The units outputs for a vector of inputs can be written as $y_i = w' x_i$ and any linear combination of $y$ writes as $\sum_{i=1}^s \alpha_i y_i = w' \bar{x}, \quad \bar{x} := \sum_{i=1}^s \alpha_i x_i.$ The pre-activation of a single linear unit follows a Gaussian process due to the properties of normal distributions under linear combinations. Its covariance function is the scaled inner product kernel, given as \\
+$\mathbb{E}[y_i y_j] = \mathbb{E}[(w \cdot x_i)(w \cdot x_j)] = x_i' \mathbb{E}[w w'] x_j = x_i' \left( \frac{\sigma^2}{n} I_{n \times n} \right) x_j = \frac{\sigma^2}{n} x_i' x_j.
+$
+
+This concept applies to single layers of linear units where activations are independent, conditioned on the inputs.
+
+\textbf{Deep Layers:} In the next layers there is randomness in weights and also in activations. We observe products between random matrices of the type $W^{l+1}X^l, \ \ l \geq 1$, where $X^l = X^l (W^l,...,W^1)$ is the activation matrix of layer $l$ and is random. Thus, such products are not normal, although a deep pre-activation process yields normality due to CLT.
+
+\textbf{Non-linear Layer Maps:} A non-linear activation function $\phi$ reshapes pre-activations which are no longer Gaussian. In the GP limit of pre-activations, the mean and covariance of units are sufficient to work with, since activations of layer $l$ are summed over to form pre-activations of $l+1$. CLT reshapes them back to Gaussian such that the mean functions writes as $\mu(x^{l+1}) = \mathbb{E}[\phi(W^l x^l)].$ DNNs can be interpreted as Gaussian Processes (GPs) in the infinite width limit, using kernel recursion. Then 
+$K^l_{\mu\nu} = \mathbb{E}[\phi(x^{l-1}_{i\mu})\phi(x^{l-1}_{i\nu})] = \sigma^2 \mathbb{E}[\phi(f_\mu)\phi(f_\nu)],
+\quad f \sim GP(0, K^{l-1}).
+$
+
+As for NTK, we hereby use kernel regression and Bayesian predictive mean looks like $f^*(x) = \mathbf{k}(x)' K^+ \mathbf{y}.$ Adv. of GP view: We can also quantify the conditional variance: $\mathbb{E}[(f(x) - f^*(x))^2] = K(x, x) - \mathbf{k}(x)' K^+ \mathbf{k}(x)$.
+\subsection{Empirical Neural Tangent Kernel}
+$K(x, x^\prime; \theta) = \nabla_\theta f(x; \theta)^\top \nabla_\theta f(x^\prime; \theta)=\sum_{p=1}^P \pd{f(x;\theta)}{\theta_p} \pd{f(x^\prime; \theta)}{\theta_p}$\\
+Using the NTK, we can track how our function changes in the sample during training (functional gradient flow): $\dot{\textbf{f}} = K(\theta)(\textbf{y - f})$. \\
+\textbf{Exa:} $f(x)=w^\top V x, w\in \mathbb{R}^m, V\in \mathbb{R}^{m\times d}$\\
+$\leadsto \nabla_\theta f(x)^\top \nabla_\theta f(x^\prime) = (x^\top V^\top w^\top \otimes x^\top)
+\begin{pmatrix}
+    Vx^\prime \\
+    w\otimes x^\prime
+\end{pmatrix}
+=\langle Vx, Vx^\prime \rangle + (w^\top \otimes x^\top)(w \otimes x^\prime)=\langle Vx, Vx^\prime \rangle + (w^\top w) \otimes (x^\top x^\prime)= \langle Vx, Vx^\prime \rangle + \|w\|^2\langle x, x^\prime \rangle$
+
+\textbf{Infinite Width Limit}
+Consider an MLP with width sequence $m_l$ and weights initialized as
+
+$w^l_{ij} = \frac{\sigma_w}{\sqrt{m_l}}\omega^l_{ij}, \quad b^l_i = \frac{\sigma_b}{\sqrt{m_l}}\beta^l_i, \quad \omega^l_{ij}, \beta^l_i \sim \mathcal{N}(0,1)$.
+
+This scaling normalizes weight magnitudes by the square root of layer width (similar to LeCun initialization). In the infinite width limit where $m_l \to \infty$ for all hidden layers, under suitable technical conditions (including Lipschitz activation functions), the initial Neural Tangent Kernel (NTK) converges in probability to a deterministic limit
+$k(\theta) \stackrel{P}{\to} k^\infty$.
+The limiting kernel $k^\infty$ depends only on the initialization distribution, not the specific random parameters. This effectively means there is only one infinite width network at initialization. This result can be intuitively understood through the law of large numbers: as width approaches infinity, the sampled population of units in each layer approaches the population distribution.
+
+\textbf{NTK Constancy}
+Convergence to deterministic NTK $k^\infty$ cannot only be established pointwise, but with
+ a few additional technical assumptions, convergence also holds uniformly over training
+ trajectories s.t. $k(\theta(t)) \to k^\infty \quad \text{uniformly over} \quad t \in [0;T]
+.$
+
+\textbf{Note:} Activation functions need to have bounded second derivatives and the time-integral
+ of the norms of update directions needs to remain stochastically bounded. The latter assumption can be verified for gradient flow trajectories.
+
+This remarkable property can also be stated (non-rigorously) as follows: the initial NTK
+ stays constant under gradient flow
+ $\frac{dk(\theta(t))}{dt} = 0$.
+ 
+Under NTK constancy, learning in the infinite width limit becomes equivalent to the linearized model, with the solution s.t.
+$f^\infty(x) = \mathbf{k}(x)K^+(\mathbf{y} - \mathbf{f}), \quad k = k^\infty$
+
+The emergence of NTK constancy can be explained through vanishing curvature in the infinite width limit, where the Hessian operator norm scales as
+$\frac{|\nabla^2f(\theta_0)|_2}{|\nabla f(\theta_0)|_2^2} \ll 1$.
+This property relates to the lazy training regime, where DNN training becomes a convex problem in the infinite width limit. For empirical NTK (gram matrices), near-constancy can be established as
+$|k(\theta_0) - k(\theta_t)|_F^2 \in \mathcal{O}(1/m), \quad m = m_1 = \cdots = m_L$.
+This holds under technical assumptions including bounded input domain $\mathcal{X} = {x : |x|_2 \leq 1}$ and appropriate learning rate conditions.
+
+\subsection{Statistical Learning Theory}
+\textbf{VC Learning Theory:} Possible classif. outomes of a fct. class on sample $S = \{x_1,\dots,x_s\}$: $\mathcal{F}(S)=\{(f(x_1),\dots,f(x_s)) \in \{-1,1\}^s: f \in \mathcal{F} \}$.
+\textbf{VC dimension} is the largest possible sample size for which the function
+ class $\mathcal{F}$ is still able to shatter a sample. Let $\hat{E}(f)$ be the empirical error and $E(f)$ expected error. The uniform convergence yields VC inequality $\mathbb{P}\{ \sup_{\mathcal{F}} |\hat{E}(f) - E(f)| > \epsilon \} \leq 8 |\mathcal{F}(s)|e^{-s\epsilon^2/32}$, yielding a non-vacuous bound on generalization error in the limit, provided that the VC dimension of $\mathcal{F}$ is finite, which means that the
+ shattering coefficient grows subexponentially. 
+ 
+ \textbf{Randomization Experiments:} Observations from Zhang et al.:
+ \begin{enumerate}
+     \item DNNs can perfectly fit training data
+     \item DNNs can possibly memorize training data perfectly (even when true labels are replaced with random labels), and thus learn nothing and cannot generalize.
+     \item Transition from true to random labels increase train time only by small factor. Gradient-based methods easily yields memorization solutions.
+     \item These exist, even when randomly shuffling the pixels of a DNN.
+ \end{enumerate}
+DNNs generalize despite infinite capacity, which defies traditional learning theory. They can memorize random data, and ConvNets’ inductive bias, like shift invariance, offers little advantage, showing that these phenomena are not data-dependent.
+ 
+\textbf{Double Descent:} There is an interpolation threshold at which the DNN
+"memorizes" training examples with little generaliz. But beyond this point, even larger models start to learn and may eventually reach lower risk. This is called the \emph{over-parametrized regime}, which is not harmed by over-fitting.
+
+\textbf{PAC Bayesian Bounds:} We consider a stochastic classifier $f$ and aim to bound the expected generalization gap. The generalization gap is defined as $max(0, E - \hat{E})$, where $\hat{E}$ is the empirical error w.r.t. the training sample, and $E$ is expected error w.r.t. the data distribution. We make use of the change of measure inequality.
+
+\textbf{Theorem:} For any \( P \gg Q \) and \( P \)-measurable \( \phi \) (i.e., a random variable),
+
+$\mathbb{E}_Q[\phi] \leq \text{KL}(Q \| P) + \ln \mathbb{E}_P \left[ e^\phi \right]$. Proof: Via Jensen’s inequality,
+
+$\ln \mathbb{E}_P \left[ e^{\phi(f)} \right] 
+\geq \ln \mathbb{E}_Q \left[ e^{\phi(f)} \frac{P(f)}{Q(f)} \right] 
+\geq \mathbb{E}_Q \ln \left[ e^{\phi(f)} \frac{P(f)}{Q(f)} \right] = \mathbb{E}_Q[\phi(f)] - \mathbb{E}_Q \left[ \ln Q(f) - \ln P(f) \right]$, where the last term is equivalent to $\text{KL}(Q \| P).$
+
+\textbf{We state famous PAC-Bayesian Theorem}, ensuring a general rate of $\mathcal{O}(1/\sqrt{s})$ and there are no hidden constants. This bound is
+ as simple as it gets, but it only bounds stochastic classifier, not a single classifier.
+
+\textbf{PAC-Bayesian for DNNs:}
+Define a Gaussian over parameters $P := \mathcal{N}(\theta_0, \lambda^2 I)$. The setting $\theta_0=0$ and $\lambda=1$ yields a standard Gaussian s.t. $Q := \mathcal{N}(\theta, \text{diag}(\sigma^2_i))$. With $P$ and $Q$ being Gaussians with diagonal covariance, one can derive $\text{KL}(Q | P)$:
+$\text{KL}(Q | P) = \sum_i \log \frac{\lambda}{\sigma_i} + \frac{\sigma_i^2 + \theta_i^2}{2\lambda^2} - \frac{1}{2}$
+
+In the limit $\lambda \to \infty$, $\text{KL}(Q | P) \to -\sum_i \log \sigma_i$, favoring large variances for the $Q$-ensemble. The PAC-Bayes bound to be minimized is:
+
+$E_{\text{PAC}}(Q) := \mathbf{E}_Q[\hat{E}] + \sqrt{\frac{2}{s}\left[\text{KL}(Q | P) + \ln\left(\frac{2\sqrt{s}}{\epsilon}\right)\right]}$
+
+A practical implementation involves generating parameter sequence $\theta^t$ via SGD, evaluating gradients on perturbed parameters sampled from the $Q$-ensemble:
+$\theta = \theta - \eta \nabla E_Q[\hat{E}], \quad \tilde{\theta} \sim Q(\theta, \sigma)$
+The reparameterization trick enables backpropagation:
+$\tilde{\theta} = \theta + \text{diag}(\sigma_i)\eta, \quad \eta \sim \mathcal{N}(0, I)$
+This approach balances between finding parameters $\theta$ that achieve low expected loss and maintaining robustness through the variance in $Q$, which affects the KL-divergence term in the bound.
+
+
+\textbf{Wide Local Minima:} Flatness of local minima with better generalization.  \textrightarrow Argued that SGD with small mini-batches leads to flatter minima comp. to full batch gradient descent. Also, weight avg. found to be favorably towards finding flatter mimima. \textrightarrow entropy SGD uses Langevin dynamics to favor minima with higher entropy.

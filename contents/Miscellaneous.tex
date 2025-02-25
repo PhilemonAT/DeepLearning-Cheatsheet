@@ -1,0 +1,74 @@
+\section{Miscellaneous}
+\subsection{Activation Functions and Important Derivatives}
+\begin{itemize}
+    \item $\tanh{x}=\dfrac{e^x - e^{-x}}{e^x + e^{-x}} = 2\sigma (2x) - 1;\quad \sigma(x)=\dfrac{1}{1+e^{-x}} = \dfrac{1+\tanh(x/2)}{2}$
+    \item $\tanh^\prime(x)=1-\tanh^2(x), \quad \sigma^\prime(x)=\sigma(x)(1-\sigma(x))$
+    \item $\text{GELU}(x)=x\Phi(\alpha x) \implies \text{GELU}^\prime(x)= \frac{\alpha x}{\sqrt{2\pi}}\exp{(-\frac{(\alpha x)^2}{2})}+\Phi(\alpha x)$
+\end{itemize}
+
+\subsection{Trigonometric Functions}
+\begin{itemize}
+    \item $\sin(\alpha \pm \beta) = \sin \alpha \cos \beta \pm \cos \alpha \sin \beta; \quad \cos(\alpha \pm \beta) = \cos \alpha \cos \beta \mp \sin \alpha \sin \beta$
+    \item $\tan(x) = \dfrac{\sin(x)}{\cos(x)}; \quad \pd{\tan(x)}{x}=\dfrac{1}{\cos^2(x)}=\sec^2(x)$
+    \item $ \sinh(x) = \dfrac{e^x - e^{-x}}{2}; \quad \pd{\sinh(x)} {x}=\cosh(x)$
+    \item $\cosh(x) = \dfrac{e^x + e^{-x}}{2}; \quad \pd{\cosh(x)} {x}=\sinh(x)$
+    \item $\tanh(x) = \dfrac{\sinh(x)}{\cosh(x)}; \quad 1 = \sinh^2(x) + \cosh^2(x)$
+\end{itemize}
+
+    
+\subsection{Analysis}
+\begin{itemize}
+    \item $\pd{\|x-b\|_2}{x}=\dfrac{x-b}{\|x-b\|_2}; \quad \pd{|x-b|}{x}=\dfrac{x-b}{|x-b|}; \quad \pd{b^{\top} x}{x}=\pd{x^{\top} b}{x} = b$
+    \item $\pd{b^{\top}Ax}{x}=A^{\top}b; \quad \pd{x^{\top}x}{x} = 2x; \quad \pd{x^{\top}Ax}{x}=(A^{\top}+A)x \stackrel{A \text{ symm.}}{=} 2Ax$
+    \item $\pd{\log |X|}{X} = X^{-\top}; \quad \pd{\operatorname{tr}(X^{\top}A)}{X}=A; \quad \pd{\operatorname{tr}(X^{\top}X)}{X}=\pd{\operatorname{tr}(X X^{\top})}{X}=2X$
+    \item $\pd{x^{\top}Ax}{A}=xx^{\top}; \quad \pd{\relu(b^{\top}x)}{x}=\mathbb{I}_{\{b^{\top}x>0\}} b; \quad \pd{\softmax(z_i)}{z_j}=\softmax(z_i)(\mathbb{I}_{\{i=j\}}- \softmax(z_j))=\softmax(z_i)(\delta_{ij}- \softmax(z_j))$
+    \item $\pd{A_1 B A_2}{X}=(A_1 \otimes A_2^\top)\pd{B}{X}; \quad (A_1\otimes B_1)(A_2\otimes B_2)=A_1A_2 \otimes B_1B_2$
+    \item $f(x)=w^\top V x, \pd{f(x)}{V}=w^\top \otimes x^\top; \nabla_V f(x) = w\otimes x$
+    \item $\pd{x \odot y}{x} = \operatorname{diag}(y); \quad \pd{x \odot y}{y} = \operatorname{diag}(x)$
+    \item $\sum_{i = 0}^n {n \choose i} = 2^n$ 
+\end{itemize}
+
+\subsection{Proability Theory}
+\begin{itemize}
+    \item Markov: $\phi(\cdot)$ non-decr.\& non-neg.$\leadsto\mathbb{P}(X \geq \epsilon)\leq \dfrac{\mathbb{E}[\phi(X)]}{\phi(\epsilon)}$
+    \item Chebyshev: $\phi(\cdot)$ non-decr.\& non-neg. $\leadsto \mathbb{P}(f(X)\geq \epsilon)\leq \dfrac{\mathbb{E}[\phi(f(X))]}{\phi(\epsilon)}$
+\end{itemize}
+
+\textbf{Normal Distribution}:
+\begin{itemize}
+    \item $p(z)\propto \exp\left(-\frac{1}{2} z^{\top}Qz + z^{\top} m\right)\leadsto p(z)=\mathcal{N}(z; Q^{-1}m, Q^{-1})$
+    \item $X_1|X_2 = a \sim \mathcal{N}(\mu_1 + \Sigma_{12} \Sigma_{22}^{-1} (a-\mu_2), \Sigma_{11} - \Sigma_{12}\Sigma_{22}^{-1} \Sigma_{21})$
+\end{itemize}
+
+\subsection{Linear algebra}
+\textbf{Cauchy-Schwarz inequality:} $|\langle x, y\rangle|^2 \leq \langle x,x \rangle \langle y,y \rangle$. With dot prod. as inner prod., and $||x|| \coloneqq \sqrt{\langle x,x\rangle}$, this means $|x \cdot y|^2 \leq ||x||^2\cdot||y||^2 \iff |x \cdot y| \leq ||x||\cdot||y||$
+
+\textbf{Spectral norm definition \& properties}:
+\begin{itemize}
+    \item $\lVert A\rVert_2 = \underset{x: \lVert x\rVert =1}{\text{max}} \lVert Ax\rVert = \sigma_1(A)$, where $\sigma_1$ is $A$'s largest singular value
+    \item $\lVert AB\rVert_2 \leq \lVert A\rVert_2 \lVert B\rVert_2$. Also extends to higher order products
+\end{itemize}
+
+\textbf{Woodbury identity:}\\
+\((I+UCV)^{-1}=I-U(C^{-1} + VU)^{-1}V,\quad C\text{ invertible}\)\\
+\((A+UCV)^{-1}=A^{-1}-A^{-1}U(C^{-1}+VA^{-1}U)^{-1}VA^{-1}, \quad A, C\text{ invertible}\)
+
+\textbf{Pseudoinverse}: \\
+$W_{\text{left}}^{+} = \text{lim}_{\sigma^2 \rightarrow0}W^{\top}(WW^{\top}+\sigma^2I)^{-1}$ and $WW_{\text{left}}^{+} = I$\\
+$W_{\text{right}} = \text{lim}_{\sigma^2 \rightarrow0}(W^{\top}W+\sigma^2I)^{-1}W^{\top}$ and $W_{\text{right}}^{+}W = I$\\
+\textbf{Note} that the identities depending on left or right inverse will have different dimensions!! 
+
+
+\textbf{Other Matrix identities:}\\ 
+\((I+AB)^{-1}A=A(I+BA)^{-1}\) and \(\quad (I+AB)^{-1}=I-A(I+BA)^{-1}B\)
+
+
+\subsection{Group Theory}
+A group is a non-empty set $G$ with a binary operation on $G$, denoted "$\cdot$", such that the following group axioms are satisfied: 
+\begin{itemize}
+    \item \textbf{(Closure)}: $\forall a, b \in G: a \cdot b \in G$
+    \item \textbf{(Associativity)}: $\forall a, b, c\in G: (a \cdot b) \cdot c = a \cdot (b \cdot c)$
+    \item \textbf{(Identity Element)}: $\exists e \in G \quad \forall a \in G : e \cdot a = a\quad \text{and} \quad a \cdot e =a$. The element $e$ is called the \emph{identity element}
+    \item \textbf{(Inverse Element)}: $\forall a \in G \quad \exists b \in G: a \cdot b = e \quad \text{and} \quad b \cdot a = e$, where $e$ is the identity element. Note that for all $a$, the \textbf{inv. element} $b$ is unique.
+\end{itemize}
+The group is called \textbf{Abelian} if on top of the group axioms, commutativity holds as well, i.e., $\forall a,b \in G: a\cdot b = b \cdot a$

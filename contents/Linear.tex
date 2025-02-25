@@ -1,0 +1,153 @@
+\section{Linear Networks}
+\subsection{Regression Models}
+\textbf{Least Squares} Assume: \(f[w](x) = w^\top x \)
+\begin{itemize}
+    \item Criterion (MSE): \(h[w] = \frac{1}{2s}\sum_{i=1}^s(w^\top x_i-y_i)^2\)
+    \item Matrix form \(h[w](\mathcal{S})=\frac{1}{2s}||Xw-y||^2\), Normal eq.: \(\nabla h = 2X^\top X-2X^\top y\)
+    \item \(w^* = X^*y \in argmin_w\) \(h[w]\) where \(X^*\) is the Moore-Penrose inverse of \(X\)  \(\equiv lim_{\delta\rightarrow0}(X^\top X + \delta I)^{-1}X^\top\)
+    \item For very large datasets, SGD can be used to train: \\ \(w_{t+1} = w_t + \eta (y_{i_t}-w_t^\top x_{i_t})x_{i_t}\) where \(i_t \overset{iid}{\sim} Uniform(1,\dots, s)\)
+    \item LS model \(\equiv\) neg-log-likelihood function corresponds to Gaussian homoscedastic noise model: \(y_i =w^\top x_i + \epsilon_i\) , \(\epsilon_i \sim \mathcal{N}(0,\sigma^2)\)
+    \item LS assumes iid Gaussian noise on targets
+    \item Regularized: \(h_\lambda[w] \equiv h_{old}[w] + \frac{\lambda}{2}||w||^2\) s.t. \(w^* = (X^\top X + \lambda I)^{-1}X^\top y\)
+    \item \(\lambda \rightarrow 0\) \(\equiv\) LS and l1 = Lasso, l2 = Ridge
+\end{itemize} 
+\textbf{Logistic function} \(\sigma(z) = \frac{1}{1+e^{-z}}\)
+$\sigma(z) + \sigma(-z) = 1$, as $\sigma(-z)=\frac{\exp^{-z}}{1+\exp^{-z}}$. It means $\sigma - \frac{1}{2}$ is an odd function. Derivatives are polynomials in $\sigma$. \(\sigma' = \sigma(1-\sigma), \sigma'' =  \sigma(1-\sigma)(1-2\sigma)\)\\
+\(\sigma\) is monotonically increasing, convex in \(\mathbb{R}_-\) and concave in \(\mathbb{R}_+\) \begin{itemize}
+    \item \(\sigma\) and \(1-\sigma\) are often interpreted as probabilities of Bernoulli event
+    \item  (Negative) logistic log likelihood with respect to binary outcome is equivalent to cross entropy with respect to degenerate target distribution: \(\ell(y,z) =-y log (\sigma(z)) - (1-y)log(1-\sigma(z))\)
+    \item $ln(\sigma(z)) = -ln(1+e^{-z})$, \((ln(\sigma(z)))' = 1- \sigma\) , \((ln(\sigma(z)))'' = -\sigma(1- \sigma)<0\) 
+    \item Implying: (1) \(-log(\sigma)\) strictly convex (2) upper-bounds the heavy-side function (0-1 error) 
+\end{itemize}
+\textbf{Logistic Regression}
+\begin{itemize}
+    \item Minimizes logistic loss over \(\mathcal{S}:\) \(h[w] =\frac{1}{s}\sum_{i=1}^{s}\ell(y_i,w^\top x_i)\)
+    \item No closed form solution, but can be optimized with SGD
+    \item Iterates remain in the span of \(\{w_0,x_1\dots,x_s\}\), and  \(\nabla \ell_i =(\sigma(w^\top x_i) - y_i)x_i\). \textbf{Note:} predicted probability minus 0/1 target appears in the gradient.
+\end{itemize}
+\subsection{Layers \& Units}
+\begin{itemize}
+    \item Layer \(F\) is a parametrized map (affine transformation + nonlinearity)
+    \item  Width $m$: \(F:\underset{parameters}{\mathbb{R}^{m(n+1)}}\times \underset{input}{\mathbb{R}^n} \rightarrow \underset{output}{\mathbb{R}^m}\) ; \(F[\theta\equiv vec(W,b)](x) \equiv \phi(Wx+b)\)
+    \item \textbf{Composition} \(G = F^L[\theta^L] \circ \dots F^1[\theta^1]\), \(F^l[\theta^l]=\phi^l(W^lx+b^l)\)
+    \item Computing \(x^l =F^l(x^{l-1})\) is dominated by matrix-vector product
+    \item \textbf{Units}: component functions of \(F\) parametrized by \(w\) and \(b\) defining family of functions \(f[w,b](x)=\phi(w^\top x+b)\)
+    \item \textbf{Invar. of units}: \(f(x) = f(x+\delta x)\) \(\forall \delta x \perp w\). Hence, level sets of a unit are orthogonal to $w$: For \(L_f(z) \equiv \{x:\phi(w^\top x+b)=z\}\) we have  \(w \perp L_f\) (nonlinearity only affects the rate of change in the direction of $w$)
+    \item \textbf{Symmetry}: Units can be arbitrarily numbered: for Permutation matrix \(P\), we have \(F(x)=P^{-1}\phi(P(Wx+b))\implies\) map invariant under simultaneous permutation of in- and out-weights of a layer.
+    \item Also implies parametrization are never unique in feedforward network
+    \item \textbf{Nesting}: Layer can be nested within layer of width $m+1$ by adding a unit with weight (\(\nu =0\)) zero (barren), by having the same unit twice where the weights sum to old weight, or \(w=b=0\)
+\end{itemize}
+\textbf{Activation functions}
+\begin{itemize}
+    \item Linear: \(\phi \equiv id\), Sigmoid: \(\phi \equiv \sigma = \frac{1}{1+e^{-z}}\in (0;1)\), ReLU: \(\phi\equiv max\{0,z\}\)
+\end{itemize}
+\begin{itemize}
+    \item \textbf{Loss functions}:  Squared \(\frac{1}{2}||\hat{y}-y||^2\), binary CE loss (see below)
+    \item  CE between PMFs \(p\) and \(q\) is \(-\sum_i p_ilog q_i\) \(\rightarrow\) Define CE for \(p=y\in: \{1,\dots, m\}\) \(\ell (y,q) =-log(q_y)\)
+    \item \(q_y\) outputs of Softmax = \(\frac{e^{z_i}}{\sum_j e^{z_j}}\) \(\simeq \) probability of class i
+\end{itemize}
+CE loss can be written in terms of logits \(z:\) \(\ell(y;z)=[-z_y+log\sum_je^{z_j}]\frac{1}{ln2}\)
+\begin{itemize}
+    \item Train risk: \(h[\theta](\mathcal{S})\) . Population risk \(E_P(h[\theta]) \) where \((x,y)\sim P\) : can be estimated with held-out data or CV.
+\end{itemize}
+ \subsection{Theorems and Results:}
+\begin{itemize}
+    \item Lin. networks \textit{don't gain represnt. power from depth} (\(W^2W^1:=W\))
+    \item Lin. layers can reduce rep. power: Project to a low-dim rep (\(m_2<m_1\)):\\
+    \textrightarrow\(\rank(F)=\rank(W^L\dots W^1) \leq \overset{L}{\underset{l=0}{min\textbf{  }}} m_l \leq n\) \(\rightarrow\) reduction in representational power is limited by the layer of smallest width
+    
+    \item \textbf{Linear. AE} attempt to learn identity to find an embedding by learning linear map \(G(x) = VWx\) \(\rightarrow\) \(h(x) = \frac{1}{2}||VWx-x||^2\) ; \(W,V^\top \in \mathbb{R}^{m\times n}\)
+    \item \(rank(VW)\leq m\)
+    \item Any optimal \(W\) will map data n-space to subspace spanned by m-PCs of sample patterns
+\end{itemize}  
+\textbf{Residual Layers}: Often, however non-trivial to learn identity. So, initialize layers around identity so re-learning not necessary \(\rightarrow\) residual layer
+\begin{itemize}
+    \item Add x to \(F\) output directly to ease learning of identity (Skip connection), often hard in DNNs \(F[W,b](x)=x+[\phi(Wx+b)-\phi(0)] \text{, s.t. }F[0,0]=id\)
+\end{itemize}
+Compositions with residual layers cause number of paths to grow exponentially: (2 layers) \(F[\theta](x)= x + \phi(W^1x)+\phi(W^2x)+\phi(W^2\phi(W^1x))\)
+\begin{itemize}
+    \item doubles to 8 summands for 3 layers and so on
+    \item Finally note that as \(x\) does not depend on \([W,b]: \) gradient map remains unchanged \(\nabla F=\nabla \phi(Wx+b)\). Activations change though, naturally.
+    \item Linear Projection can more easily preserve existing features. However, Residual layers do not change dimensionality as \(W\) is square matrix, so one often projects to allow flexibility of residual layers wrt to dimensions: \(F[V,W,b]=\phi(Wx+b)+Vx\) where \(V,W \in \mathbb{R}^{m\times n}\)
+    \item Normal res layer recovered for \(n=m\) and \(V=I\)
+    \item DenseNet \(x^{l+1}= F^{l+1}(x^l,\dots,x^0=x)\) . Issue: dimensionality \(\uparrow\) 
+\end{itemize}
+\begin{itemize}
+    \item \textbf{Sigmoid Networks}: \(\phi(z)= \sigma(z)\) (tanh(z)\(=2\sigma(2z)-1\) \(\rightarrow\) tanh and \(\sigma\) lead to equally expressive networks, tanh preferred for sign symmetry)
+    \item \textbf{Universal Approx:} Let \(\mathcal{G}_n=span\{\sigma(w^\top x +b) | w \in \mathbb{R}^n,b\in \mathbb{R}\}\) 
+\end{itemize}
+\(\rightarrow\) can one approximate any continuous functions arbitrarily well with sufficiently wide, single hidden layer MLPs? YES
+We want to obtain uniform guarantees for all points in a compact domain K. So, we use \textit{uniform norm}. Let:
+\begin{itemize}
+    \item \(||f||_{\infty,K} \equiv \underset{x \in K}{sup}|f(x)|\) and \(d_K(f,g) := ||f-g||_{\infty,K}\)
+    \item Assume we have a function class \(\mathcal{G}\) with wich we want to approx. \(f\) over \(K\). Then
+    \item Approximation error of function class \(\mathcal{G}\) : \(d_K(f,\mathcal{G})\equiv \underset{g\in \mathcal{G}}{inf} \text{ } d_K(f,g)\) 
+    \item If \(d_K(f,\mathcal{G})=0\implies\) $f$ is approximated by $\mathcal{G}$ on $K$
+    \item  Alternatively, f approximated by \(\mathcal{G}\) for \(\exists \{g_1,\dots\}\in \mathcal{G}\)  then \( \forall \epsilon >0: \exists M\geq 1: \forall m \geq M: ||g_m-f||_{\infty,K} < \epsilon\)
+    \item Func. class is approx by \(\mathcal{G}\) over \(K\) if \(\forall f\in \mathcal{F}:d_K(f,\mathcal{G})=0\)
+\end{itemize}
+$\rightarrow$ If this holds for all compact sets \(K\), then  $\mathcal{G}$ is a univ. approxim. for \(\mathcal{F}\)
+\begin{itemize}
+\item A point x is in \(cl(G)\), if for every neighborhood, there is a point G within an \(\epsilon-\)distance of x \(\rightarrow\) It must hold that \(\mathcal{F}\subseteq cl(\mathcal{G})\) i.e. the largest function class that can be approximated
+by G is its closure
+\item \(\rightarrow\) For every \(f\) and \(m\) there is a simple MLP of width \(m\) which will achieve error \(\epsilon=\epsilon_m\) which can be made arbitrarily small by \(\uparrow m\)
+\item Def: Let $C(\mathbb{R}^n) = \{\,f : \mathbb{R}^n \to \mathbb{R}\mid f \text{ is continuous on } \mathbb{R}^n\}.$
+\item \textbf{Weierstrass Thrm}: Polynomials are univers. approxim. of \(C(\mathbb{R})\)
+\item \textbf{Smooth func. Approx:} Let \(\phi \in C^\infty(\mathbb{R})\equiv\) all $\infty$ differentiable functions, but not a polynomial \(\rightarrow\) span(\(\{\phi (ax+b)|a,b \in \mathbb{R}\})\) univ. approx. \(C(\mathbb{R})\) 
+\begin{itemize}
+    \item \textcolor{darkred}{For n=1, an MLP with smooth activ. \(\sigma\) which \textbf{isn't a polynomial} is a univ. approx.}
+\end{itemize}
+\item \textbf{Lifting Lemma:} Let \(\phi\) be s.t. span\((\{\phi(ax+b)|a,b\in \mathbb{R}\})\) univer. approx. \(C(\mathbb{R})\) then span(\(\{\phi(w^\top x+b)|w\in \mathbb{R}^n, b\in \mathbb{R}\})\) univers. approx. \(C(\mathbb{R}^n)\)
+\item \textbf{\textcolor{darkred}{For any smooth act. functions except polynomials, MLPs are universal approxim.}} (no upper bounds on necessary width \(m\) though)
+\begin{itemize}
+    \item Single hidden layer needed, addit. layers could reduce error quicker
+\end{itemize}
+\begin{itemize}
+    \item Why not polynomials? span of \(\phi:\) degree k polynomial is also degree k polynomials. In other words: Polynomial Activation\(\implies\) Polynomial Network. With \(L\) layers, entire network is polynomial in \(\mathbf{x}\) of finite degree \(k^L\) and uni-variate finite degree polynomials are not dense in \(C(\mathbb{R}^n)\) en compacta!
+\end{itemize}
+\item \textit{How many units needed for approx acc. }? Answer:\textbf{ Barron's Thrm} for any \(f\) s.t. : \(\int_{\mathbb{R}^n}|f(x)|dx<\infty\) let us define Fourier transform: \(\hat{f}(\omega)=\int_{\mathbb{R}^n }e^{-2\pi i \omega'x}f(x)dx, \) \(\hat{f}:\mathbb{R}^n\rightarrow\ \mathbb{C}\) . Barron Thrm applies for \(f\) fulfilling regularity condition \(C_f:= \int ||\omega|||\hat{f}(\omega)|d\omega < \infty\) and r>0
+\item Then \( \exists \) sequence of one hidden layer MLPs \((g_m)_{m\in \mathbb{N}}\) s.t. \(\int_{r\mathbb{B}}(f(x)-g_m(x))^2\mu(dx) \leq \mathcal{O}(\frac{1}{m})\) ; \(r\mathbb{B}:=\{x\in \mathbb{R}^n:||x||\leq r\}\) and \(\mu\) is a meas. on \(r\mathbb{B}\)
+\item So, a single hidden layer MLP can approximate functions with finite \(C_f\) at order \(\frac{1}{m}\) and independently of input dimensions \(n\) and data distribution!!
+\item Approximation error of MLPs: \(\propto \frac{1}{m}\)
+\item  MLPs avoid the curse of dimensionality (if \(C_f <\infty\))and can increase convergence by increasing width!
+\begin{itemize}
+    \item However, methods that use fixed set of m basis fct. \(\rightarrow\) best approx. order is \((\frac{1}{m})^\frac{2}{n}\)
+\end{itemize}
+
+\end{itemize}
+\subsection{ReLU Networks \(\phi(z) = max\{0,z\}\) } 
+\begin{itemize}
+    \item Leaky relu to obtain gradient info in zero-branch: \( \varepsilon \, w' x\) for \(x \leq 0\) for \(\varepsilon \in \mathbb{R}\)
+    \item Let \(\Theta(Wx+b) \in \{0,1\}^m\), be the binary activation pattern of ReLu units for \(\Theta :=\) Heavyside function
+    \item Space can be partitioned into \(X_0 \equiv \{x: \Theta (Wx+b) =0\}\) and \(X_1 \equiv \dots =1 \rightarrow\) restricted to any \(X_{0/1}\), ReLU layer map is affine 
+    \item How expressive are ReLU Layers? Answer:\textbf{Thrm (Zaslavsky):} Let \(\mathcal{H}\) be a set of m hyperplanes in \(\mathbb{R}^n\) and \(R(\mathcal{H}):\) number of connected regions of \(\mathbb{R}^n-\mathcal{H}\). Then \(R(\mathcal{H})\leq \overset{min\{n,m\}}{\underset{i=0}{\sum}}\binom{m}{i}:=R(m)\). The inequality is an equality if hyperplanes in \(\mathcal{H}\) are in general position
+    \item Number of linear cells is a measure of \textbf{expressiv}. of ReLU layers. \textbf{Complexity grows subexponen. only once \(m>n\)} \(\rightarrow\) \textbf{\textit{innefficiency of shallow ReLU Networks.}}
+    \item Rep Power of deep ReLU Network: \textbf{Thrm (Motufar)}: Consider ReLU network with L layers of width \(m>n\rightarrow R(m,L)\geq R(m) \left\lfloor \frac{m}{n} \right\rfloor^{\,n(L-1)}\) \(\rightarrow\) \textit{exponential growth for \(m\geq 2n\). So represent. advant. for deep ReLUs}
+    \item \textit{One of very few theoretical results showing advantage of depth in DNNs!!}
+    \item Universality of ReLU?: \textbf{Thrm (Shektman):} Piecewise linear fcts. are universal approximators of \(C(\mathbb{R})\), then sufficient to show ReLU can represent arbitrary piecewise functions which is a classic result of \textbf{Thrm (Lebesgue)}
+    \item One then obtains: \textbf{Thrm (ReLU Universality):} Networks with one hidden layer of ReLU units are universal function approximators
+    \item What about minimal non-linearity required for univ. approximators? We need functions that generlize ReLUs
+    \item m-Hinge fct. \(g[W,b](x)=\overset{m}{\underset{i=1}{max}}\{w_i^\top x + b_i\}\) (Maxout units)
+    \item \textbf{Thrm:} Every continuous piecewise linear function \(g:\mathbb{R}^n \rightarrow\mathbb{R}\) can be written as a signed sum of m-Hinges with \(m\leq n+1\) 
+    \item \textbf{Thrm}: Every continuous piecewise linear function \(f\) can be written as the difference of two polyhedral functions as follows \(f(x)=\underset{(w,b)\in \mathcal{A}^+}{max}\{w^\top x+b\}-\underset{(w,b)\in \mathcal{A}^-}{max}\{w^\top x+b \}\) where \(\mathcal{A}^+ \) and \(\mathcal{A}^-< \infty\)  
+\textbf{    \item Minimality result}: Two max operations are a sufficient element of non-linearity to obtain universal approximators
+    
+\end{itemize}
+\subsection{Exercises}
+\textbf{Sigmoid vs Tanh:} \(F_1(z)=\bm{W}_2 \tanh(\bm{W}_1 \bm{x} + \bm{b}_1)+\bm{b}_2=\bm{W}_2[2\sigma(2\bm{W}_1\bm{x} 2\bm{b}_1) - \bm{1}] + \bm{b}_2 = \bm{W}_2^\prime \sigma(\bm{W}_1^\prime \bm{x}+\bm{b}_1^\prime)+\bm{b}_2^\prime\) with \(\bm{W}_1^\prime = 2\bm{W}_1, \bm{W}_2^\prime=2\bm{W}_2, \bm{b}_1^\prime=2\bm{b}_1, \bm{b}_2^\prime = \bm{b}_2 - \bm{W}_2\bm{1}\)
+
+\textbf{Linear Auto-encoders:} Let \(\bm{X}=[\bm{x_1}\ldots\bm{x}_n]\in\mathbb{R}^{d\times n}\) be the data matrix and \(\bm{A}=\bm{DE}\) be a linear autoencoder with \(\bm{E}\in\mathbb{R}^{h\times d}, \bm{D}\in \mathbb{R}^{d\times h}\) and \(\bm{\hat{X}}=\bm{AX}\) be the reconstruction matrix. Then
+\begin{itemize}
+    \item \(\rank(\bm{A})=\rank(\bm{DE})\leq \min\{\rank(\bm{D}), \rank(\bm{E})\}\leq \min\{d, h\}\) as \(\rank(\mathbf{E})\leq \min\{d, h\}\) and \(\rank(\bm{D})\leq \min\{d, h\}\)
+    \item By Eckart-Young-Mirsky Thm.: \(\bm{\hat{X}}^*=\operatorname{argmin}_{\bm{\hat{X}}:\rank(\bm{\hat{X}})=k} \|\bm{X} - \bm{\hat{X}}\|_F^2 = \bm{U}_k \Sigma_k \bm{V}_k^\top\), where \(\bm{X}=\bm{U}_k\bm{\Sigma}_k \bm{V}_k^\top\) is the truncated SVD of \(\bm{X}\)
+    \item The optimal weight matrices are given by the first k columns (ranked according to dominant singular values) of \(\bm{U}\) combined with any invertible \(\bm{A}\in\mathbb{R}^{k\times k}\): \(\bm{D}^*=\bm{U}_k(A),\quad \bm{E}^*=(\bm{A}^{-1})\bm{U}_k^\top\)
+    \item \(\|\bm{X}-\bm{DEX}\|_F^2\) is convex in \(\bm{E}\) and \(\bm{D}\) but not jointly
+\end{itemize}
+
+\textbf{Thm. (Weierstrass):} If \(f(x)\) is a \emph{continuous} function for \(a\leq x \leq b\) and if \(\epsilon\) is an arbitrary positive quantity, it is possible to construct an approximating polynomial \(P(x)\) s.t. \(|f(x)-P(x)| \leq \epsilon,\quad a\leq x \leq b\) where w.l.o.g. one can assume \(0<a<b<1\) and \(f(x)=0\) outside of \((a,b)\)
+
+% \subsection{Logistic Regression}
+
+
+% \subsection{Linear Networks}
+% \textbf{Rem. 1:} Linear networks do not gain representational power from depth.
